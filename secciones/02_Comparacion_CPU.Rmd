@@ -1,0 +1,67 @@
+---
+title: "02_Comparacion_CPU"
+output: html_document
+---
+<!-- Tarea 2.1.2: Análisis comparativo de CPU según Efficiency -->
+
+```{r setup-cpu-efficiency, include=FALSE}
+# Cargamos las librerías específicas de este apartado (según LAB05)
+library(DescTools) # Para Outlier() y Desc()
+library(lattice)   # Para histogramas condicionados
+library(e1071)     # Para skewness() y kurtosis()
+library(knitr)
+library(kableExtra)
+library(here)
+
+# Definimos la paleta morada (imprescindible para los gráficos)
+paleta_morada <- c("#E8DAEF", "#C39BD3", "#8E44AD", "#5C068C")
+
+# Si ejecutamos este Rmd en solitario (sin pasar por informe_final.Rmd),
+# cargamos Utilidades.R y creamos datos_cloud automáticamente:
+if (!exists("datos_cloud")) {
+  source(here::here("scripts", "Utilidades.R"))
+  datos_cloud <- read.csv(
+    here::here("data", "raw", "Cloud_Performance_01.csv"),
+    stringsAsFactors = FALSE,
+    na.strings = c("NA", "", " ")
+  )
+  datos_cloud$CPU <- as.numeric(datos_cloud$CPU)
+  datos_cloud$CPU[datos_cloud$CPU < 0] <- NA
+  datos_cloud$Efficiency <- factor(
+    datos_cloud$Efficiency,
+    levels = c("Bronze", "Silver", "Gold"),
+    ordered = TRUE
+  )
+}
+```
+
+
+## Análisis comparativo del porcentaje de uso del procesador (`Cpu') entre los niveles de eficiencia (`Efficiency`)
+
+En este apartado analizaremos el comportamiento de la variable cuantitativa continua **`CPU`** (*''Porcentaje de uso de capacidad de procesador consumido por las tareas del nodo''* en `%`) agrupada según los niveles del atributo ordinal **`Efficiency`** (*"Clasificación energética y de eficiencia del hardware asignado al servidor"*: `Bronze < Silver < Gold`). El objetivo es comparar la distribución de `CPU` entre los tres grupos mediante gráficos, medidas descriptivas y los contrastes estadísticos apropiados.
+
+## Histograma Adosados por Grupos
+
+Para comparar la distribución de una variable continua según los grupos definidos por un factor, dividimosel conjunto de datos `datos_cloud` mediante split() y representamos los histogramas de densidad (`freq = FALSE`) con escalas comunes en ambos ejes.
+
+```{r hist-group-cpu, fig.width=10, fig.height=4, fig.cap="Histogramas del porcentaje de uso de CPU para cada nivel de eficiencia"}
+# Dividimos el dataframe en 3 subconjuntos en función de los niveles de Efficiency
+cloud_eff <- split(datos_cloud, datos_cloud$Efficiency)
+
+# Mostramos los tres gráficos juntos
+par(mfrow = c(1, 3))
+
+labs_eff <- levels(datos_cloud$Efficiency) # Etiquetas: Bronze, Silver, Gold
+id <- 1:length(labs_eff)
+
+hlist <- sapply(id, function(i) hist(
+  cloud_eff[[i]]$CPU,
+  freq = FALSE,
+  xlim = c(0, 100),        # Se ajusta el eje X de 0% a 100%
+  ylim = c(0, 0.04),       # Se ajusta el eje Y común para la densidad
+  col = paleta_morada[i],  # Color asignado a cada nivel de Efficiency
+  main = labs_eff[i],      # Título de cada subgráfico
+  xlab = "Uso de CPU (%)",
+  ylab = "Densidad"
+))
+```
