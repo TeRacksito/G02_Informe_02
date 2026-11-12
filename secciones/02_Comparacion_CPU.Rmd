@@ -1,7 +1,3 @@
----
-title: "02_Comparacion_CPU"
-output: html_document
----
 <!-- Tarea 2.1.2: Análisis comparativo de CPU según Efficiency -->
 
 ```{r setup-cpu-efficiency, include=FALSE}
@@ -15,24 +11,6 @@ library(here)
 
 # Definimos la paleta morada (imprescindible para los gráficos)
 paleta_morada <- c("#E8DAEF", "#C39BD3", "#8E44AD", "#5C068C")
-
-# Si ejecutamos este Rmd en solitario (sin pasar por informe_final.Rmd),
-# cargamos Utilidades.R y creamos datos_cloud automáticamente:
-if (!exists("datos_cloud")) {
-  source(here::here("scripts", "Utilidades.R"))
-  datos_cloud <- read.csv(
-    here::here("data", "raw", "Cloud_Performance_01.csv"),
-    stringsAsFactors = FALSE,
-    na.strings = c("NA", "", " ")
-  )
-  datos_cloud$CPU <- as.numeric(datos_cloud$CPU)
-  datos_cloud$CPU[datos_cloud$CPU < 0] <- NA
-  datos_cloud$Efficiency <- factor(
-    datos_cloud$Efficiency,
-    levels = c("Bronze", "Silver", "Gold"),
-    ordered = TRUE
-  )
-}
 ```
 
 
