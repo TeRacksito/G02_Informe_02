@@ -1,0 +1,205 @@
+## Análisis Categórico: Load_Level y Efficiency
+### Tabla de Frecuencias de Load_Level condicionada a Efficiency
+
+```{r tabla-contingencia-abs}
+# -------------------------------------------------------------
+#  Tabla de Frecuencias Absolutas Conjuntas y Marginales
+# -------------------------------------------------------------
+# Calcula frecuencias absolutas conjuntas
+tabla <- table(datos_cloud$Load_Level, datos_cloud$Efficiency)
+
+# Añadimos marginales
+tabla_total <-  addmargins(tabla)
+
+# Asigna etiquetas con notación LaTeX
+colnames(tabla_total)[ncol(tabla_total)] <- "$n_{x_{i}}$"
+rownames(tabla_total)[nrow(tabla_total)] <- "$n_{y_{j}}$"
+
+# Convierte a data.frame haciendo explícita la primera columna
+df_tabla1 <- data.frame(
+  `Nivel de Carga / Eficiencia` = rownames(tabla_total),
+  as.data.frame.matrix(tabla_total),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+# Imprime tabla formateada
+kbl(df_tabla1, 
+    caption = "Frecuencias Absolutas Conjuntas ($n_{ij}$) y Marginales",
+    align = "c",
+    escape = FALSE, 
+    row.names = FALSE) %>% # Quita los row.names automáticos de R
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "center") %>%
+  row_spec(0, background = "#5C068C", color = "white", bold = TRUE) %>%  # Encabezado mmorado oscuro
+  column_spec(1, background = "#5C068C", color = "white", bold = TRUE) # Primera columna con el mismo estilo
+
+```
+
+### Distribución relativa Conjunta y Condicionada
+
+A partir de las frecuencias absolutas de la tabla \@ref(tab:tabla-contingencia-abs), calculamos las frecuencias relativas conjuntas ($f_{ij}$) en la tabla \@ref(tab:tabla-contingencia-rel) y la distribución de `Load_Level`condicionada a cada nivel de `Efficiency` en porcentaje en la Tabla \@ref(tab:tabla-condicionada-col).
+
+```{r tabla-contingencia-rel}
+# -------------------------------------------------------------
+#  Tabla de Frecuencias Absolutas Conjuntas y Marginales
+# -------------------------------------------------------------
+prop_conjunta <- round(addmargins(proportions(tabla)), digits=3)
+
+colnames(prop_conjunta)[ncol(prop_conjunta)] <- "$f_{x_{i}}$"
+rownames(prop_conjunta)[nrow(prop_conjunta)] <-"$f_{y_{j}}$"
+
+df_tabla2 <- data.frame(
+  `Nivel de Carga / Eficiencia`= rownames(prop_conjunta),
+  as.data.frame.matrix(prop_conjunta),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+kbl(df_tabla2,
+    caption = "Tabla de Contingencia: Frecuencias Relativas Conjuntas ($f_{ij}$) y Marginales",
+    align = "c",
+    escape = FALSE,
+    row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, background = "#5C068C", color = "white", bold = TRUE) %>%
+  column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
+```
+
+```{r tabla-condicionada-col}
+# -------------------------------------------------------------
+#  Distribución Condicionada P(Load_Level | Efficiency) en %
+# -------------------------------------------------------------
+# margin = 2 condiciona respecto a las columnas (Efficiency)
+cond_cols <- round(proportions(tabla, margin = 2) * 100, digits = 2)
+cond_cols_tot <- rbind(cond_cols, Total = colSums(cond_cols))
+
+df_tabla3 <- data.frame(
+  `Nivel de Carga / Eficiencia`= rownames(cond_cols_tot),
+  as.data.frame.matrix(cond_cols_tot),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+kbl(df_tabla3,
+    caption = "Distribución Condicionada de Load_Level respecto a Efficiency (% por columna)",
+    align = "c",
+    escape = FALSE,
+    row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, background = "#5C068C", color = "white", bold = TRUE) %>%
+  column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
+```
+
+### Representación Gráfica Conjunta y Condicionada
+
+Para visualizar tanto el volumen de servidores en cada combinación como la estabilidad de las distribuciones condicionadas, representamos el diagrama de sectores bidimensional (`PlotCirc`) en la figura \@ref(fig:grafico-sectores) y los diagramas de barras condicionadas junto al diagrama de mosaico de la Figura \@ref(fig:graficos-condicionados).
+
+```{r grafico-sectores, fig.cap="Diagrama de sectores bidimensional de frecuencias absolutas conjuntas entre Load_Level y Efficiency", fig.align="center", fig.width=7, fig.height=6, message=FALSE, warning=FALSE}
+
+library(DescTools)
+
+# paleta de colores para Load_Level y Efficiency
+col_filas <- c("#E1BEE7", "#AB47BC", "#7B1FA2", "#4A148C")
+col_cols <- c("#CD7F32", "#9E9E9E", "#D4AF37")
+
+PlotCirc(tabla,
+         acol = col_filas,
+         rcol = col_cols,
+         main = "Diagrama de Sectores Bidimensional: Nivel de carga / Eficiencia")
+```
+
+```{r graficos-condicionados, fig.cap="Distribución condicionada de Load_Level dado Efficiency: barras adosadas, apiladas, mosaico", fig.align="center", fig.width=11, fig.height=4.5}
+# Proporciones condicionadas por columna P(Load_Level | Efficiency)
+prop_cond <- proportions(tabla, margin = 2)
+
+# Muestra los gráficos de sectores en 1 fila y 3 columnas
+par(mfrow = c(1, 3), mar = c(4, 4, 3, 1))
+
+# 1. Barras Adosadas (beside = TRUE)
+barplot(prop_cond,
+        beside = TRUE,
+        col = col_filas,
+        ylim = c(0, 0.5),
+        main = "Barras Adosadas (Condicionada)",
+        xlab = "Eficiencia del Hardware",
+        ylab = "Proporción condicionada",
+        legend.text = rownames(prop_cond),
+        args.legend = list(x = "topright", bty = "n", cex = 0.85))
+
+# 2. Barras apiladas (beside = FALSE)
+barplot(prop_cond,
+        beside = FALSE,
+        col = col_filas,
+        main = "Barras Apiladas (100% Columna)",
+        xlab = "Eficiencia del Hardware",
+        ylab = "Proporción acumulada")
+
+# 3. Diagrama de mosaico
+plot(t(prop_cond),
+     col = col_filas,
+     main = "Diagrama de Mosaico",
+     xlab = "Eficiencia del Hardware",
+     ylab = "Nivel de Carga")
+
+# Restaurar parámetros gráficos
+par(mfrow = c(1, 1))
+```
+
+En los gráficos de barras apiladas y mosaico (Figura \@ref(fig:graficos-condicionados)) se observa que los bloques horizontales correpondientes a `Low`, `Medium`, `High` y `Critical` conservan prácticamente la misma altura a lo largo de `Bronze`, `Silver` y `Gold`, lo que anticipa visualmente la independencia entre ambas variables
+
+### Contraste de Independencia. Test $\chi^2$ y Análisis de Residuos
+
+Para confirmar totalmente si el nivel de carga (`Load_Level`) es independiente de la eficiencia del hardware (`Efficiency`), planteamos el siguiente contraste de hipótesis fijado con un nivel de significación $\alpha = 0,05$:
+
+- **$H_0$:** `Load_Level` y `Efficiency` son variables estadísticamente independientes.
+
+- **$H_1$:** Existe dependencia (asociación) entre `Load_Level` y `Efficiency`.
+
+```{r contraste-chi2, message=FALSE, warning=FALSE}
+library(LearningStats)
+
+# Test de independencia de Pearson y test didáctico de LearningStats
+test_chi<-chisq.test(tabla)
+indepchisq.test(tabla)
+
+# Verificación de frecuencias esperadas (todas deben ser >= 5)
+min_esperada <- round(min(test_chi$expected), 2)
+```
+
+En primer lugar, comprobamos la condición de aplicación de la aproximación $\chi^2$: todas las frecuencias esperadas bajo independencia superan ampliamente el umbral mínimo exigido ($e_{ij} \ge 5$), siendo la menor frecuencia esperada igual a **`r min_esperada`**.
+
+El estadístico de contraste toma un valor de $\chi^2 = `r round(test_chi$statistic, 3)`$ con $`r test_chi$parameter`$ grados de libertad, arrojando un **$p$-valor = `r round(test_chi$p.value, 4)`**($> 0.05$). En consecuencia, **no rechazamos la hipótesis nula ($H_0$)** y concluimos que no existe evidencia estadística de asociación entre el nivel de carga del sistema y la certificación de eficiencia energética del servidor.
+
+```{r residuos-haberman}
+# -------------------------------------------------------------
+#  Tabla de Residuos Tipificados Corregidos (Residuos de Haberman)
+# -------------------------------------------------------------
+
+residuos_std <- round(test_chi$stdres, 3)
+
+df_residuos <- data.frame(
+  `Nivel de Carga / Eficiencia` = rownames(residuos_std),
+  as.data.frame.matrix(residuos_std),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+kbl(df_residuos,
+    caption = "Residuos Tipificados Corregidos de Haberman ($d_{ij}$)",
+    align = "c",
+    escape = FALSE,
+    row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, background = "#5C068C", color = "white", bold = TRUE) %>%
+  column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
+```
+
+Finalmente, al inspeccionar los residuos tipificados corregidos de Haberman en la Tabla \@ref(tab:residuos-haberman), comprobamos que **ninguna celda supera en valor absoluto el valor crítico $|d_{ij}| = 1.96$** (correspondiente a $\alpha = 0.05$ en una distribución $\mathcal{N}(0,1)$). Esto ratifica que las ligeras variaciones porcentuales observadas entre servidores `Bronze`, `Silver` y `Gold` se deben exclusivamente al azar muestral, confirmando que el balanceador de carga distribuye las tareas de forma homogénea con independencia de la eficiencia energética del nodo.
