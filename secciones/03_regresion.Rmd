@@ -1,13 +1,31 @@
 ## Uso de CPU vs Tráfico RPS
 
+En este apartado, vamos a modelizar la relación entre las variables `CPU` y `RPS` mediante
+regresión linea. Más específicamente, nos enfocaremos en las observaciones correspondientes
+a `Efficiency == "Bronze"`, es decir, los servidores de menor eficiencia energética.
+
+Queremos ver si existe dicha relación y si es posible predecir, en este caso, 
+el consumo de `CPU` a partir del volumen de tráfico `RPS`.
+
 ### Datos y modelo
 
-En esta sección se ajusta un modelo de regresión lineal simple para evaluar si el volumen de tráfico (`RPS`) permite predecir el consumo de procesador (`CPU`), limitando el análisis a los servidores de menor eficiencia energética (categoría **Bronze**).
+Es necesario primero conocer los datos y su distribución.
+
+La variable continua dependiente `CPU` representa, en porcentaje, el consumo de procesador
+de un servidor; en un instante de tiempo determinado.
+
+La variable discreta independiente `RPS` representa, en peticiones por segundo, 
+el volumen de tráfico que recibe un servidor; en un instante de tiempo determinado.
+
+Por último, el atributo ordinal condicionante `Efficiency` representa, en una escala de tres
+categorías o etiquetas, la eficiencia energética de un servidor.
 
 ### Modelo de Regresión y Ajuste
 
 ```{r modelo_regresion_bronze}
 datos_bronze <- subset(datos_cloud, Efficiency == "Bronze")
+
+
 modelo_lin <- lm(CPU ~ RPS, data = datos_bronze)
 summary(modelo_lin)
 ``` 
