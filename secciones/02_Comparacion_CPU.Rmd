@@ -65,3 +65,48 @@ hlist <- sapply(id, function(i) hist(
   ylab = "Densidad"
 ))
 ```
+
+Según se puede apreciar en la Figura \@ref(fig:hist-group-cpu), a primera vista los tres niveles de eficiencia (`Bronze`, `Silver` y `Gold`) presentan un perfil global bastante parecido: en los tres casos la distribución es claramente **asimétrica a la derecha**, alcanzando su moda (la barra de mayor densidad, en torno a $0.031 - 0.037$) en el intervalo del **$10\%$ al $20\%$ de uso de `CPU`** y extendiendo una cola hacia valores altos de carga.
+
+No obstante, si comparamos con detenimiento los tramos de cada histograma, se observan diferencias sutiles pero importantes al mejorar la eficiencia del hardware:
+
+- **Tramo de consumo muy bajo ($0\%$ a $10\%$):** En los servidores `Bronze` la primera barra es muy reducida (densidad inferior a $0.005$), mientras que en `Silver` y `Gold` esta barra más que se duplica (superando el $0.011$ y $0.013$, respectivamente), indicando que una mayor proporción de nodos opera con cargas mínimas.
+- **Tramo de consumo medio-alto ($40\%$ a $90\%$):** En el grupo `Bronze` el descenso hacia la derecha es gradual y las barras entre el $40\%$ y el $80\%$ mantienen una altura apreciable (entre $0.005$ y $0.010$). Por el contrario, en el grupo `Gold` se produce una caída brusca a partir del $40\%$ de uso de `CPU`, quedando todas las barras de la cola derecha por debajo de $0.005$.
+
+Dado que en los histogramas con intervalos de amplitud $10\%$ estas diferencias visuales parecen moderadas, recurrimos a continuación a las medidas de forma, posición y al diagrama de caja y patillas para cuantificarlas con mayor precisión.
+
+### Medidas de Forma
+
+Calculamos los coeficientes de asimetría (`skewness`) y curtosis (`kurtosis`) de la librería `e1071` por niveles de `Efficiency` utilizando `tapply()` para completar la interpretación de los histogramas.
+
+```{r tab-forma-cpu}
+# Se obtienen los coeficientes de asimetría y curtosis por niveles de Efficiency
+shape_list <- tapply(
+  datos_cloud$CPU,
+  datos_cloud$Efficiency,
+  function(x) c(skewness(x), kurtosis(x))
+)
+
+# Se transforma en tabla para formatearla con exportar_tabla()
+shape_mat <- matrix(unlist(shape_list), ncol = 3, nrow = 2, byrow = FALSE)
+rownames(shape_mat) <- c("Asimetría", "Curtosis")
+colnames(shape_mat) <- labs_eff
+
+df_shape <- data.frame(
+  `Medida` = rownames(shape_mat),
+  round(as.data.frame(shape_mat), 3),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+exportar_tabla(
+  tabla = df_shape,
+  caption = "Asimetría y curtosis de CPU condicionada al nivel de eficiencia (Efficiency)"
+) %>%
+  column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
+```
+
+Como refleja la tabla de medidas de forma:
+
+- Todos los coeficientes de **asimetría** son positivos ($0.874$ en `Bronze`, $0.932$ en `Silver` y $1.344$ en `Gold`), lo que confirma la **asimetría positiva (a la derecha)** en los tres grupos, siendo mucho más pronunciada en el nivel **Gold**.
+- El signo negativo del coeficiente de **curtosis** en los niveles **Bronze** ($-0.349$) y **Silver** ($-0.130$) indica que las distribuciones de `CPU` son ligeramente menos apuntadas que la distribución normal (**platicúrticas**), presentando por tanto una mayor dispersión. Por el contrario, en el nivel **Gold** el coeficiente de curtosis es positivo ($1.110$), lo que indica que la distribución es más apuntada que la normal (**leptocúrtica**) y concentra fuertemente sus valores en el rango bajo de consumo.
