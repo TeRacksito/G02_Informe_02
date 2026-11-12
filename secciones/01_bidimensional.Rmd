@@ -102,6 +102,7 @@ Para visualizar tanto el volumen de servidores en cada combinación como la esta
 
 ```{r grafico-sectores, fig.cap="Diagrama de sectores bidimensional de frecuencias absolutas conjuntas entre Load_Level y Efficiency", fig.align="center", fig.width=7, fig.height=6, message=FALSE, warning=FALSE}
 
+if (!requireNamespace("DescTools", quietly = TRUE)) install.packages("DescTools")
 library(DescTools)
 
 # paleta de colores para Load_Level y Efficiency
@@ -162,6 +163,7 @@ Para confirmar totalmente si el nivel de carga (`Load_Level`) es independiente d
 - **$H_1$:** Existe dependencia (asociación) entre `Load_Level` y `Efficiency`.
 
 ```{r contraste-chi2, message=FALSE, warning=FALSE}
+if (!requireNamespace("LearningStats", quietly = TRUE)) install.packages("LearningStats")
 library(LearningStats)
 
 # Test de independencia de Pearson y test didáctico de LearningStats
