@@ -1,0 +1,13 @@
+## Uso de CPU vs Tráfico RPS
+
+### Datos y modelo
+
+En esta sección se ajusta un modelo de regresión lineal simple para evaluar si el volumen de tráfico (`RPS`) permite predecir el consumo de procesador (`CPU`), limitando el análisis a los servidores de menor eficiencia energética (categoría **Bronze**).
+
+### Modelo de Regresión y Ajuste
+
+```{r modelo_regresion_bronze}
+datos_bronze <- subset(datos_cloud, Efficiency == "Bronze")
+modelo_lin <- lm(CPU ~ RPS, data = datos_bronze)
+summary(modelo_lin)
+``` 
