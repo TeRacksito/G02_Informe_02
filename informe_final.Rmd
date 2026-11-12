@@ -206,6 +206,9 @@ datos_cloud$Region <- factor(
 ```{r child = 'secciones/01_bidimensional.Rmd', envir = new.env()}
 ```
 
+```{r child = 'secciones/02_Comparacion_CPU.Rmd', envir = new.env()}
+```
+
 # Regresión Lineal
 
 ```{r child = 'secciones/03_regresion.Rmd', envir = new.env()}
