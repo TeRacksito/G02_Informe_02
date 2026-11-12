@@ -38,7 +38,7 @@ if (!exists("datos_cloud")) {
 
 ## Análisis comparativo del porcentaje de uso del procesador (`Cpu`) entre los niveles de eficiencia (`Efficiency`)
 
-En este apartado analizaremos el comportamiento de la variable cuantitativa continua **`CPU`** (*''Porcentaje de uso de capacidad de procesador consumido por las tareas del nodo''* en `%`) agrupada según los niveles del atributo ordinal **`Efficiency`** (*"Clasificación energética y de eficiencia del hardware asignado al servidor"*: `Bronze < Silver < Gold`). El objetivo es comparar la distribución de `CPU` entre los tres grupos mediante gráficos, medidas descriptivas y los contrastes estadísticos apropiados.
+En este apartado analizaremos el comportamiento de la variable continua **`CPU`** (porcentaje de uso de capacidad de procesador consumido por las tareas del nodo, en `%`) agrupada según los niveles del atributo ordinal **`Efficiency`** (clasificación energética y de eficiencia del hardware asignado al servidor: `Bronze < Silver < Gold`). El objetivo es comparar la distribución de `CPU` entre los tres grupos mediante gráficos, medidas descriptivas y los contrastes estadísticos apropiados.
 
 ## Histograma Adosados por Grupos
 
