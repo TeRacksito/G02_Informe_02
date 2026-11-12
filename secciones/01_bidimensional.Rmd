@@ -166,6 +166,8 @@ Para confirmar totalmente si el nivel de carga (`Load_Level`) es independiente d
 if (!requireNamespace("LearningStats", quietly = TRUE)) install.packages("LearningStats")
 library(LearningStats)
 
+# Debido a que en los guiones prácticos no hemos abordado esta función, he aborado por encima la documentación de R sobre esta librería para obtener la información para realizarla. Básicamente, realiza el contraste de x^2 de Pearson mediante chisq.test() y indepchisq.test() visualiza la distribución y la región, verificando que las frecuencias teóricas esperadas superen un mínimo exigido de 5 para garantizar validez matemática.
+
 # Test de independencia de Pearson y test didáctico de LearningStats
 test_chi<-chisq.test(tabla)
 indepchisq.test(tabla)
