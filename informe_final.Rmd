@@ -207,8 +207,10 @@ datos_cloud$Region <- factor(
 ```
 
 # Regresión Lineal
-```{r child = 'secciones/02_regresion.Rmd'}
+
+```{r child = 'secciones/03_regresion.Rmd', envir = new.env()}
 ```
+
 ---
 
 # Conclusiones Globales
