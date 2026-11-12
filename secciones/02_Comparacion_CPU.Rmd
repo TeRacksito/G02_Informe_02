@@ -44,7 +44,7 @@ En este apartado analizaremos el comportamiento de la variable cuantitativa cont
 
 Para comparar la distribución de una variable continua según los grupos definidos por un factor, dividimosel conjunto de datos `datos_cloud` mediante split() y representamos los histogramas de densidad (`freq = FALSE`) con escalas comunes en ambos ejes.
 
-```{r hist-group-cpu, fig.width=10, fig.height=4, fig.cap="Histogramas del porcentaje de uso de CPU para cada nivel de eficiencia", echo=TRUE}
+```{r hist-group-cpu, fig.width=10, fig.height=4, fig.cap="Histogramas del porcentaje de uso de CPU para cada nivel de eficiencia", echo=TRUE, eval=TRUE, results='hold'}
 # Dividimos el dataframe en 3 subconjuntos en función de los niveles de Efficiency
 cloud_eff <- split(datos_cloud, datos_cloud$Efficiency)
 
@@ -79,7 +79,7 @@ Dado que en los histogramas con intervalos de amplitud $10\%$ estas diferencias 
 
 Calculamos los coeficientes de asimetría (`skewness`) y curtosis (`kurtosis`) de la librería `e1071` por niveles de `Efficiency` utilizando `tapply()` para completar la interpretación de los histogramas.
 
-```{r tab-forma-cpu, echo=TRUE}
+```{r tab-forma-cpu, echo=FALSE, eval=TRUE, results='hold'}
 # Se obtienen los coeficientes de asimetría y curtosis por niveles de Efficiency
 shape_list <- tapply(
   datos_cloud$CPU,
@@ -115,7 +115,7 @@ Como refleja la tabla de medidas de forma:
 
 Representamos el diagrama de caja y patillas por grupos (Figura \@ref(fig:Diagrama-Caj-Pat-cpu)) y extraemos los valores atípicos de cada nivel con `Outlier()` de `DescTools`.
 
-```{r Diagrama-Caj-Pat-cpu, fig.cap="Diagramas de Caja y Patillas de CPU por niveles de Efficiency", echo=TRUE}
+```{r Diagrama-Caj-Pat-cpu, fig.cap="Diagramas de Caja y Patillas de CPU por niveles de Efficiency", echo=TRUE, eval=TRUE, results='hold'}
 # Diagrama de caja y patillas por cada grupo
 boxplot(
   CPU ~ Efficiency,
@@ -127,7 +127,7 @@ boxplot(
 )
 ```
 
-```{r atipicos-cpu, echo=TRUE}
+```{r atipicos-cpu, echo=TRUE, eval=TRUE, results='hold'}
 # Mostramos los datos atípicos de cada grupo ordenados
 atip <- tapply(datos_cloud$CPU, datos_cloud$Efficiency, function(x) sort(Outlier(x)))
 atip
@@ -143,7 +143,7 @@ El diagrama de caja y patillas que presenta la Figura \@ref(fig:Diagrama-Caj-Pat
 
 Calculamos mediante `tapply()` las medidas de resumen (`summary`), la desviación típica (`SD`) y el rango intercuartílico (`IQR`) por grupos para complementar la interpretación del diagrama de caja y patillas.
 
-```{r desc-tab-cond-cpu, echo=TRUE}
+```{r desc-tab-cond-cpu, echo=TRUE, eval=TRUE, results='hold'}
 # Aplicamos tapply para obtener las medidas de summary, SD e IQR por grupos
 desc_list <- tapply(
   datos_cloud$CPU,
@@ -190,7 +190,7 @@ Obtenemos el resumen descriptivo conjunto para cada nivel del factor utilizando 
 Desc(CPU ~ Efficiency, data = datos_cloud, digits = 2, verbose = c(3), plotit = TRUE)
 ```
 
-```{r tests-normalidad-wilcox-cpu, echo=TRUE}
+```{r tests-normalidad-wilcox-cpu, echo=TRUE, eval=TRUE, results='hold'}
 # Comprobación formal de la normalidad en cada nivel de Efficiency (Shapiro-Wilk)
 tapply(datos_cloud$CPU, datos_cloud$Efficiency, shapiro.test)
 
