@@ -138,3 +138,47 @@ El diagrama de caja y patillas que presenta la Figura \@ref(fig:Diagrama-Caj-Pat
 - **Tendencia decreciente:** Tanto la mediana como los cuartiles descienden progresivamente al pasar de `Bronze` a `Silver` y de `Silver` a `Gold`.
 - **Asimetría:** Corrobora lo observado en los histogramas y las medidas de forma respecto a la asimetría a la derecha en los tres niveles, dado que la mediana está más próxima al primer cuartil ($Q_1$) que al tercer cuartil ($Q_3$) y la patilla superior es mucho más larga que la inferior.
 - **Dispersión central y valores extremos:** Aunque en el nivel **Gold** el $50\%$ central de los datos (la caja) está mucho más concentrado que en los otros dos niveles, presenta un número bastante notable de valores extremos o atípicos en su cola superior (**$25$ valores atípicos** a partir de $63.17\%$), frente a **$1$ único dato atípico** en el grupo **Silver** ($87.28\%$) y **ninguno** en el grupo **Bronze**.
+
+### Medidas de Posición y Dispersión
+
+Calculamos mediante `tapply()` las medidas de resumen (`summary`), la desviación típica (`SD`) y el rango intercuartílico (`IQR`) por grupos para complementar la interpretación del diagrama de caja y patillas.
+
+```{r desc-tab-cond-cpu}
+# Aplicamos tapply para obtener las medidas de summary, SD e IQR por grupos
+desc_list <- tapply(
+  datos_cloud$CPU,
+  datos_cloud$Efficiency,
+  function(x) c(summary(x), SD = sd(x), IQR = IQR(x))
+)
+
+# Transformamos en tabla para su edición
+desc_labs <- names(desc_list[[1]])
+desc_mat <- matrix(
+  unlist(desc_list),
+  ncol = length(desc_labs),
+  nrow = length(labs_eff),
+  byrow = TRUE
+)
+colnames(desc_mat) <- desc_labs
+rownames(desc_mat) <- labs_eff
+
+df_desc <- data.frame(
+  `Eficiencia` = rownames(desc_mat),
+  round(as.data.frame(desc_mat), 3),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+exportar_tabla(
+  tabla = df_desc,
+  caption = "Medidas de posición y dispersión de CPU (%) condicionadas a la eficiencia (Efficiency)"
+) %>%
+  column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
+```
+
+Al analizar la tabla de medidas de posición y dispersión observamos que:
+
+- Debido a la asimetría positiva y a la presencia de valores extremos en la cola derecha, la **media es superior a la mediana** en los tres niveles ($32.148\%$ vs. $25.305\%$ en `Bronze`; $29.575\%$ vs. $23.220\%$ en `Silver`; $25.648\%$ vs. $19.350\%$ en `Gold`), por lo que la **mediana y el rango intercuartílico (`IQR`)** resultan más representativos.
+- El consumo mediano de `CPU` se reduce de **$25.305\%$** en `Bronze` y **$23.220\%$** en `Silver` hasta **$19.350\%$** en `Gold`. Asimismo, la dispersión del $50\%$ central de los datos (`IQR`) pasa de $28.685\%$ en `Bronze` y $28.205\%$ en `Silver` a tan solo **$20.210\%$** en `Gold` (donde el $75\%$ de los servidores consume menos de un $32.302\%$ de CPU, frente al $44.733\%$ en `Bronze`).
+
+
