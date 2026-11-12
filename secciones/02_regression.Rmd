@@ -1,8 +1,13 @@
-En esta sección se ajusta un modelo de regresión lineal simple para evaluar si el volumen de tráfico (`RPS`) permite predecir el consumo de procesador (`CPU`), limitando el análisis a los servidores de menor eficiencia energética (categoría **Bronze**).
+En esta sección ajustamos un modelo de regresión lineal simple. El objetivo es ver si podemos usar el volumen de tráfico (`RPS`) para predecir el consumo de procesador (`CPU`), centrándonos solo en los servidores de menor eficiencia (los de la categoría **Bronze**).
 
 ## Modelo de Regresión y Ajuste
 
 ```{r modelo_regresion_bronze}
+# Nos quedamos solo con los servidores Bronze
 datos_bronze <- subset(datos_cloud, Efficiency == "Bronze")
+
+# Ajustamos el modelo lineal (CPU en función de RPS)
 modelo_lin <- lm(CPU ~ RPS, data = datos_bronze)
+
+# Vemos el resumen de los resultados
 summary(modelo_lin)
