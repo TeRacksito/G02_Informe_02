@@ -197,6 +197,13 @@ datos_cloud$Region <- factor(
   datos_cloud$Region,
   levels = c("Asia-Pacific", "EU-West", "US-East")
 )
+
+# Load_Level: Nivel de demanda del sistema (Low < Medium < High < Critical)
+datos_cloud$Load_Level <- factor(
+  datos_cloud$Load_Level,
+  levels = c("Low", "Medium", "High", "Critical"),
+  ordered = TRUE
+)
 ```
 
 ---
