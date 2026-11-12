@@ -70,6 +70,9 @@ knitr::opts_chunk$set(
   fig.height = 5,
   fig.align = "center"
 )
+library(DescTools) # Para Outlier() y Desc()
+library(lattice)   # Para histogramas condicionados
+library(e1071)     # Para skewness() y kurtosis()
 library(knitr)
 library(kableExtra)
 library(here)
