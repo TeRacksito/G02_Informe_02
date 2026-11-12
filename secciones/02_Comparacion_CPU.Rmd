@@ -62,7 +62,7 @@ Calculamos los coeficientes de asimetría (`skewness`) y curtosis (`kurtosis`) d
 shape_list <- tapply(
   datos_cloud$CPU,
   datos_cloud$Efficiency,
-  function(x) c(skewness(x), kurtosis(x))
+  function(x) c(skewness(x, na.rm = TRUE), kurtosis(x, na.rm = TRUE))
 )
 
 # Se transforma en tabla para formatearla con exportar_tabla()
