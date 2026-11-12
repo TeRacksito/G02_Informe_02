@@ -77,6 +77,8 @@ library(knitr)
 library(kableExtra)
 library(here)
 library(pandoc)
+library(DescTools)
+library(LearningStats)
 
 source(here("scripts", "Utilidades.R"))
 ```
