@@ -102,12 +102,9 @@ Para visualizar tanto el volumen de servidores en cada combinación como la esta
 
 ```{r grafico-sectores, fig.cap="Diagrama de sectores bidimensional de frecuencias absolutas conjuntas entre Load_Level y Efficiency", fig.align="center", fig.width=7, fig.height=6, message=FALSE, warning=FALSE}
 
-if (!requireNamespace("DescTools", quietly = TRUE)) install.packages("DescTools")
-library(DescTools)
-
 # paleta de colores para Load_Level y Efficiency
-col_filas <- c("#E1BEE7", "#AB47BC", "#7B1FA2", "#4A148C")
-col_cols <- c("#CD7F32", "#9E9E9E", "#D4AF37")
+col_filas <- c("#E8DAEF", "#C39BD3", "#8E44AD", "#5C068C")
+col_cols <- c("#C39BD3", "#8E44AD", "#5C068C")
 
 PlotCirc(tabla,
          acol = col_filas,
@@ -163,47 +160,9 @@ Para confirmar totalmente si el nivel de carga (`Load_Level`) es independiente d
 - **$H_1$:** Existe dependencia (asociación) entre `Load_Level` y `Efficiency`.
 
 ```{r contraste-chi2, message=FALSE, warning=FALSE}
-if (!requireNamespace("LearningStats", quietly = TRUE)) install.packages("LearningStats")
-library(LearningStats)
-
-# Debido a que en los guiones prácticos no hemos abordado esta función, he aborado por encima la documentación de R sobre esta librería para obtener la información para realizarla. Básicamente, realiza el contraste de x^2 de Pearson mediante chisq.test() y indepchisq.test() visualiza la distribución y la región, verificando que las frecuencias teóricas esperadas superen un mínimo exigido de 5 para garantizar validez matemática.
 
 # Test de independencia de Pearson y test didáctico de LearningStats
-test_chi<-chisq.test(tabla)
-indepchisq.test(tabla)
-
-# Verificación de frecuencias esperadas (todas deben ser >= 5)
-min_esperada <- round(min(test_chi$expected), 2)
+indepchisq.test(tabla, alpha = 0.05, plot = TRUE)
 ```
 
-En primer lugar, comprobamos la condición de aplicación de la aproximación $\chi^2$: todas las frecuencias esperadas bajo independencia superan ampliamente el umbral mínimo exigido ($e_{ij} \ge 5$), siendo la menor frecuencia esperada igual a **`r min_esperada`**.
-
-El estadístico de contraste toma un valor de $\chi^2 = `r round(test_chi$statistic, 3)`$ con $`r test_chi$parameter`$ grados de libertad, arrojando un **$p$-valor = `r round(test_chi$p.value, 4)`**($> 0.05$). En consecuencia, **no rechazamos la hipótesis nula ($H_0$)** y concluimos que no existe evidencia estadística de asociación entre el nivel de carga del sistema y la certificación de eficiencia energética del servidor.
-
-```{r residuos-haberman}
-# -------------------------------------------------------------
-#  Tabla de Residuos Tipificados Corregidos (Residuos de Haberman)
-# -------------------------------------------------------------
-
-residuos_std <- round(test_chi$stdres, 3)
-
-df_residuos <- data.frame(
-  `Nivel de Carga / Eficiencia` = rownames(residuos_std),
-  as.data.frame.matrix(residuos_std),
-  check.names = FALSE,
-  stringsAsFactors = FALSE
-)
-
-kbl(df_residuos,
-    caption = "Residuos Tipificados Corregidos de Haberman ($d_{ij}$)",
-    align = "c",
-    escape = FALSE,
-    row.names = FALSE) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-                full_width = FALSE,
-                position = "center") %>%
-  row_spec(0, background = "#5C068C", color = "white", bold = TRUE) %>%
-  column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
-```
-
-Finalmente, al inspeccionar los residuos tipificados corregidos de Haberman en la Tabla \@ref(tab:residuos-haberman), comprobamos que **ninguna celda supera en valor absoluto el valor crítico $|d_{ij}| = 1.96$** (correspondiente a $\alpha = 0.05$ en una distribución $\mathcal{N}(0,1)$). Esto ratifica que las ligeras variaciones porcentuales observadas entre servidores `Bronze`, `Silver` y `Gold` se deben exclusivamente al azar muestral, confirmando que el balanceador de carga distribuye las tareas de forma homogénea con independencia de la eficiencia energética del nodo.
+Como se aprecia en el gráfico y en la salida del contraste, el estadístico $\chi^2_{\text{obs}}$ es menor que el valor crítico (cae dentro de la región de aceptación) y el **$p$-valor es superior a $\alpha = 0,05$**. En consecuencia, **no rechazamos la hipótesis nula ($H_0$)**. Concluyendo que noexiste evidencia estadística de asociación entre el nivel de carga y la eficiencia energética del servidor; el reparto de cargas entre las distintas categorías de eficiencia es homogéneo y compatible con el azar.
