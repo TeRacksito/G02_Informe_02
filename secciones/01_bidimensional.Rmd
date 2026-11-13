@@ -1,4 +1,12 @@
 ## Análisis Categórico: Load_Level y Efficiency
+
+Analizamos la relación conjunta entre dos variables cualitativas ordinales ordinales del conjunto de datos:
+
+* **`Load_Level`:** clasifica la exigencia computacional que soporta el servidor durante la ejecución, clasificado de menor a mayor intensidad en cuatro niveles (`Low`, `Medium`, `High` y `Critical`).
+* **`Efficiency`:** representa la certificación de rendimiento energético del hardware del nodo (`Bronze`, `Silver` y `Gold`), donde `Bronze` corresponde a los equipos con mayor consumo energético por unidad de trabajo y `Gold` a los más eficientes.
+
+El propósito de cruzar ambas variables es analizar cómo se reparte la carga de trabajo entre los distintos tipos de servidores. En concreto, queremos comprobar si los nodos más eficientes como (`Gold`) asumen las cargas más exigentes o si el sistema distribuye las tareas de manera homogénea e independiente.
+
 ### Tabla de Frecuencias de Load_Level condicionada a Efficiency
 
 ```{r tabla-contingencia-abs}
