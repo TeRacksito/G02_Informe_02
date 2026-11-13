@@ -214,7 +214,7 @@ datos_cloud$Region <- factor(
 ---
 
 # Conclusiones Globales
-```{r child = 'secciones/03_conclusiones.Rmd'}
+```{r child = 'secciones/04_conclusiones.Rmd'}
 ```
 
 # Repositorio del proyecto
