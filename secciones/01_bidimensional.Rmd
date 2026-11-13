@@ -1,3 +1,7 @@
+```{r 01_bidimensional_setup, include=FALSE}
+options(DescTools.stamp = FALSE)
+```
+
 ## Análisis Categórico: Load_Level y Efficiency
 
 Analizamos la relación conjunta entre dos variables cualitativas ordinales ordinales del conjunto de datos:
@@ -86,8 +90,9 @@ Sin embargo, para ver realmente si hay dependencia, lo mejor es mirar la distrib
 #  Distribución Condicionada P(Load_Level | Efficiency) en %
 # -------------------------------------------------------------
 # margin = 2 condiciona respecto a las columnas (Efficiency)
-cond_cols <- round(proportions(tabla, margin = 2) * 100, digits = 2)
+cond_cols <- proportions(tabla, margin = 2) * 100
 cond_cols_tot <- rbind(cond_cols, Total = colSums(cond_cols))
+cond_cols_tot <- round(cond_cols_tot, digits = 2)
 
 df_tabla3 <- data.frame(
   `Nivel de Carga / Eficiencia`= rownames(cond_cols_tot),
@@ -114,15 +119,15 @@ Si miramos la tabla, los porcentajes son muy parecidos en las tres columnas. Por
 
 Para visualizar tanto el volumen de servidores en cada combinación como la estabilidad de las distribuciones condicionadas, representamos el diagrama de sectores bidimensional (`PlotCirc`) en la figura \@ref(fig:grafico-sectores) y los diagramas de barras condicionadas junto al diagrama de mosaico de la Figura \@ref(fig:graficos-condicionados).
 
-```{r grafico-sectores, fig.cap="Diagrama de sectores bidimensional de frecuencias absolutas conjuntas entre Load_Level y Efficiency", fig.align="center", fig.width=7, fig.height=6, message=FALSE, warning=FALSE}
+```{r grafico-sectores, fig.align="center", fig.width=7, fig.height=6}
 
 # paleta de colores para Load_Level y Efficiency
 col_filas <- c("#E8DAEF", "#C39BD3", "#8E44AD", "#5C068C")
 col_cols <- c("#C39BD3", "#8E44AD", "#5C068C")
 
 PlotCirc(tabla,
-         acol = col_filas,
-         rcol = col_cols,
+         acol = col_cols,
+         rcol = col_filas,
          main = "Diagrama de Sectores Bidimensional: Nivel de carga / Eficiencia")
 ```
 
