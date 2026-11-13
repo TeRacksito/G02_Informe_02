@@ -11,19 +11,19 @@ h <- function(texto) {
 cat0 <- function(...) cat(..., sep = "")
 
 exportar_tabla <- function(tabla, path = NULL, caption) {
-  tabla_kbl <- tabla %>%
+  tabla_kbl <- tabla |>
     kbl(
       caption = caption,
       align = "c",
       row.names = FALSE,
       escape = FALSE,
       label = NA
-    ) %>%
+    ) |>
     kable_styling(
       bootstrap_options = c("striped", "hover", "condensed"),
       full_width = FALSE,
       position = "center"
-    ) %>%
+    ) |>
     row_spec(0, bold = TRUE, background = "#5C068C", color = "white")
   
   if (!is.null(path)) {
