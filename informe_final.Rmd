@@ -221,9 +221,14 @@ datos_cloud$Load_Level <- factor(
 
 # Regresión Lineal
 
+```{r child = 'secciones/03_regresion.Rmd', envir = new.env()}
+```
+
 ---
 
 # Conclusiones Globales
+```{r child = 'secciones/04_conclusiones.Rmd'}
+```
 
 # Repositorio del proyecto
 

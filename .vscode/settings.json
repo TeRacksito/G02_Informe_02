@@ -8,5 +8,10 @@
     "milisegundos",
     "pandoc",
     "reinicios"
-  ]
+  ],
+  "[rmd]": {
+    "editor.defaultFormatter": "REditorSupport.r",
+    "editor.formatOnSave": true,
+    "editor.wordWrap": "on"
+  }
 }

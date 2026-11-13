@@ -1,0 +1,422 @@
+```{r 03_regresion_setup, include=FALSE}
+library(e1071)
+library(ggplot2)
+library(Hmisc)
+library(lmtest)
+```
+
+## Uso de CPU vs Tráfico RPS para servidores de eficiencia energética "Bronze"
+
+En este apartado, vamos a modelizar la relación entre las variables `CPU` y `RPS` mediante regresión lineal. Más específicamente, nos enfocaremos en las observaciones correspondientes a `Efficiency == "Bronze"`, es decir, los servidores de menor eficiencia energética.
+
+Queremos ver si existe dicha relación y si es posible predecir, en este caso, el consumo de `CPU` a partir del volumen de tráfico `RPS`.
+
+### Descripción de los datos
+
+Es necesario primero conocer los datos:
+
+La variable continua dependiente `CPU` representa, en porcentaje, el consumo de procesador de un servidor; en un instante de tiempo determinado.
+
+La variable continua independiente `RPS` representa, en peticiones por segundo, el volumen de tráfico que recibe un servidor; en un instante de tiempo determinado.
+
+Tratamos esta variable como continua sin agrupamiento en pos de beneficiar el modelo. Si tuviéramos que estudiar su tabla de frecuencias o histograma (o parecidos), entonces sí sería pertinente realizar un agrupamiento mediante la regla de Sturges, por ejemplo evitando cometer el mismo error que se cometió en el Informe 01.
+
+Por último, el atributo ordinal condicionante `Efficiency` representa, en una escala de tres categorías o etiquetas, la eficiencia energética de un servidor.
+
+### Análisis descriptivo básico inicial
+
+Sería beneficioso conocer algunas características básicas de estos datos.
+
+Primero, tenemos pensado filtrar por la categoría `Bronze`, ¿qué cantidad de observaciones tenemos para esta categoría? ¿y en las otras?
+
+```{r tabla_frecuencias_efficiency, eval=TRUE, class.source="fold-hide"}
+tab_eff <- as.data.frame(table(datos_cloud$Efficiency))
+n_total <- sum(tab_eff$Freq)
+tab_eff$FreqRel <- tab_eff$Freq / n_total
+colnames(tab_eff) <- c("Efficiency", "Frecuencia", "Frecuencia Relativa")
+exportar_tabla(
+  tab_eff,
+  caption = "Tabla de frecuencias de la variable Efficiency",
+)
+```
+
+Nuestra muestra de servidores resulta ser la menos frecuente, constando solo del `` `r tab_eff[["Frecuencia Relativa"]][tab_eff$Efficiency == "Bronze"] * 100`% `` de las observaciones. Es decir, haremos una regresión obviando el `` `r sum(tab_eff[["Frecuencia Relativa"]][tab_eff$Efficiency != "Bronze"]) * 100`% `` de observaciones, en pos de centrarnos en la categoría de interés. Es interesante recalcar este hecho, pues, los modelos predictivos son siempre mejores cuanto más datos tengamos.
+
+Definimos nuestro subconjunto de datos de interés, filtrando por la categoría `Bronze`:
+
+```{r subset_bronze, eval=TRUE, results='hold'}
+datos_bronze <- subset(datos_cloud, Efficiency == "Bronze")
+summary(datos_bronze[, c("CPU", "RPS")])
+na_cpu <- sum(is.na(datos_bronze$CPU))
+cat(paste("\nNúmero de valores NA en CPU:", na_cpu))
+na_rps <- sum(is.na(datos_bronze$RPS))
+cat(paste("\nNúmero de valores NA en RPS:", na_rps))
+```
+
+Afortunadamente, no tenemos valores `NA` en ninguna de las dos variables que nos interesan para este análisis.
+
+Sería interesante expandir el resumen estadístico:
+
+```{r resumen_ver_def, eval=TRUE, results='hold', class.source="fold-hide"}
+resumen_var <- function(x) {
+  c(
+    Min = min(x),
+    Q1 = unname(quantile(x, 0.25)),
+    Mediana = median(x),
+    Media = mean(x),
+    Q3 = unname(quantile(x, 0.75)),
+    Max = max(x),
+    SD = sd(x),
+    IQR = IQR(x),
+    CV = sd(x) / abs(mean(x)),
+    Asimetría = e1071::skewness(x)
+  )
+}
+```
+
+```{r resumen_vars, eval=TRUE, results='hold'}
+mat_resumen <- rbind(
+  `CPU (%)` = resumen_var(datos_bronze$CPU),
+  `RPS (req/s)` = resumen_var(datos_bronze$RPS)
+)
+
+df_resumen <- data.frame(
+  Variable = rownames(mat_resumen),
+  round(as.data.frame(mat_resumen), 3),
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+exportar_tabla(
+  df_resumen,
+  caption = "Resumen estadístico de las variables CPU y RPS para la categoría Bronze"
+)
+```
+
+Lo que nos llama la atención inmediatamente es la importante dispersión relativa de la variable `CPU`, con un coeficiente de variación del `` `r round(df_resumen$CV[df_resumen$Variable == "CPU (%)"] * 100, 2)`% ``. Vemos que tiene una asimetría positiva (`` `r round(df_resumen$Asimetría[df_resumen$Variable == "CPU (%)"], 3)` ``).
+
+Esto indica que, en la mayoría de observaciones, el uso o consumo de procesador es bajo. Y, que en determinados momentos, el consumo se dispara.
+
+Por otro lado, la variable `RPS` tiene una dispersión relativa mucho menor (`` `r round(df_resumen$CV[df_resumen$Variable == "RPS (req/s)"] * 100, 2)`% ``), haciendo que la media sea un indicador aceptable de la tendencia central. Es también sensiblemente más simétrica que la variable `CPU` (`` `r round(df_resumen$Asimetría[df_resumen$Variable == "RPS (req/s)"], 3)` ``).
+
+Podemos observar estos datos mediante un diagrama de violín y un diagrama de caja, para cada variable:
+
+```{r diagramas_cpu_rps, eval=TRUE, class.source="fold-hide"}
+df_plot_bronze <- rbind(
+  data.frame(Variable = "CPU (%)", Valor = datos_bronze$CPU),
+  data.frame(Variable = "RPS (req/s)", Valor = datos_bronze$RPS)
+)
+df_plot_bronze$Variable <- factor(
+  df_plot_bronze$Variable,
+  levels = c("CPU (%)", "RPS (req/s)")
+)
+
+colores_ggplot <- c(
+  "CPU (%)" = "#5C068C",
+  "RPS (req/s)" = "#8E44AD"
+)
+
+ggplot(df_plot_bronze, aes(x = Variable, y = Valor, fill = Variable)) +
+  geom_violin(alpha = 0.1, trim = FALSE) +
+  geom_boxplot(width = 0.45, alpha = 0.65, outlier.alpha = 0.85, outlier.shape = 1, outlier.size = 2) +
+  facet_wrap(~Variable, scales = "free") +
+  scale_fill_manual(values = colores_ggplot) +
+  scale_color_manual(values = colores_ggplot) +
+  labs(
+    title = paste0("Distribución de CPU y RPS en servidores Bronze"),
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    strip.text = element_text(size = 12, face = "bold", color = "#5C068C"),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+```
+
+### Aproximación al modelo lineal: dispersión y correlación
+
+Quizás resulte interesante, antes de siquiera proponer un ajuste lineal, observar o comprobar visualmente, mediante el diagrama de dispersión, si existe una relación lineal entre las variables `CPU` y `RPS`. De esta forma, podemos visualizar la relación, no solo calcularla.
+
+```{r nube_puntos_cpu_rps, eval=TRUE, class.source="fold-hide", fig.height=7}
+plot(
+  datos_bronze$RPS, datos_bronze$CPU,
+  pch = 20, col = "#5C068C",
+  xlab = "RPS (req/s)",
+  ylab = "CPU (%)",
+  main = paste0("Dispersión de CPU vs RPS en servidores Bronze")
+)
+```
+
+Es evidente que se puede decir que, al aumentar el volumen de tráfico `RPS`, el consumo de procesador `CPU` también aumenta; por lo general. Es decir, tienen una relación positiva. Sin embargo, no parece ser una relación lineal perfecta. Vemos que el uso de procesador es estable ante volúmenes bajos y medios de tráfico, y que se dispara ante volúmenes altos.
+
+Además, podemos calcular el coeficiente de correlación de Pearson para cuantificar la fuerza de la relación lineal entre ambas variables.
+
+```{r correlacion_cpu_rps, eval=TRUE, class.source="fold-hide"}
+cor_mat <- Hmisc::rcorr(as.matrix(datos_bronze[, c("CPU", "RPS")]), type = "pearson")
+r_val <- unname(cor_mat$r["CPU", "RPS"])
+p_cor <- unname(cor_mat$P["CPU", "RPS"])
+
+df_cor <- data.frame(
+  Variables = "CPU vs RPS",
+  `r de Pearson` = round(r_val, 4),
+  `p-valor` = base::format.pval(p_cor, eps = 2.2e-16, digits = 4, scientific = TRUE),
+  check.names = FALSE
+)
+
+exportar_tabla(
+  df_cor,
+  caption = "Coeficiente de correlación de Pearson entre CPU y RPS en servidores Bronze"
+)
+```
+
+Obtenemos un p-valor muy bajo, prácticamente cero (menor que $10^{-16}$), con un $r = `r round(r_val, 4)`$, sugiriendo una correlación significativa. Este coeficiente, sin embargo, sugiere una fuerte correlación lineal positiva, casi perfecta. La observación visual difiere ligeramente de la cuantificación.
+
+### Ajuste del modelo lineal
+
+Una vez entendida la relación entre las variables, podemos proceder a ajustar el modelo lineal.
+
+```{r modelo_regresion_bronze}
+modelo_lin <- lm(CPU ~ RPS, data = datos_bronze)
+```
+
+```{r resumen_modelo, eval=TRUE, class.source="fold-hide"}
+sum_modelo_lin <- summary(modelo_lin)
+anova_modelo_lin <- anova(modelo_lin)
+
+b0 <- unname(coef(modelo_lin)[1])
+b1 <- unname(coef(modelo_lin)[2])
+r2 <- sum_modelo_lin$r.squared
+r2_adj <- sum_modelo_lin$adj.r.squared
+se <- sum_modelo_lin$sigma
+f_stat <- unname(sum_modelo_lin$fstatistic[1])
+df1 <- unname(sum_modelo_lin$fstatistic[2])
+df2 <- unname(sum_modelo_lin$fstatistic[3])
+p_f <- unname(pf(f_stat, df1, df2, lower.tail = FALSE))
+
+df_coef <- data.frame(
+  `Parámetro` = c("Intercepto (b0)", "Pendiente RPS (b1)"),
+  `Estimación` = round(unname(sum_modelo_lin$coefficients[, 1]), 4),
+  `Error Estándar` = round(unname(sum_modelo_lin$coefficients[, 2]), 4),
+  `Estadístico t` = round(unname(sum_modelo_lin$coefficients[, 3]), 3),
+  `p-valor` = format.pval(unname(sum_modelo_lin$coefficients[, 4]), eps = 2.2e-16),
+  check.names = FALSE
+)
+colnames(df_coef) <- c("Parámetro", "Estimación", "Error Estándar", "Estadístico t", "p-valor")
+
+exportar_tabla(
+  df_coef,
+  caption = "Coeficientes estimados del modelo lineal CPU ~ RPS (Bronze)"
+)
+``` 
+
+Ambos coeficientes estimados son significativos, con p-valores muy bajos (menores que $10^{-16}$). Podemos rechazar la hipótesis nula $H_{0}:~\beta_i = 0$ para ambos parámetros.
+
+Como esperábamos, la pendiente es positiva ($\beta_{1} = `r round(b1, 4)`$), indicando que a mayor volumen de tráfico, mayor consumo de procesador. Sin embargo, hemos obtenido una ordenada en el origen sensiblemente negativa ($\beta_{0} = `r round(b0, 4)`$). Esto supone que predicciones para valores de `RPS` bajos podrían resultar en valores negativos de `CPU`, lo cual no tiene sentido físico. Es importante tener en cuenta esta consideración al interpretar el modelo. ¿Quizás sería más adecuado un modelo no lineal? Podría ser una cuestión extra a atender al final del análisis.
+
+```{r bondad_ajuste_modelo, eval=TRUE, class.source="fold-hide"}
+df_bondad <- data.frame(
+  `R^2` = round(r2, 4),
+  `R^2 Ajustado` = round(r2_adj, 4),
+  `Error Estándar (se)` = round(se, 4),
+  `Estadístico F` = round(f_stat, 2),
+  `gl` = paste0("(", df1, ", ", df2, ")"),
+  `p-valor` = format.pval(p_f, eps = 2.2e-16),
+  check.names = FALSE
+)
+
+exportar_tabla(
+  df_bondad,
+  caption = "Bondad del ajuste del modelo lineal CPU ~ RPS (Bronze)"
+)
+```
+
+Observamos un coeficiente de determinación $R^2 = `r round(r2, 4)`$, lo que indica que aproximadamente el `` `r round(r2 * 100, 2)`% `` de la variabilidad en el uso del procesador se puede explicar debido al volumen de tráfico. Es decir, el modelo lineal no es perfecto, pero es bastante bueno.
+
+Aún así, es importante no olvidar las consideraciones sobre el intercepto negativo; porque aunque tengamos un buen ajuste, nunca es adecuado extrapolar valores imposibles físicamente. De nuevo, el p-valor es muy bajo (menor que $10^{-16}$), rechazando la hipótesis nula $H_{0}:~No~hay~relación~lineal$.
+
+### Recta de regresión y predicciones
+
+La recta de regresión que hemos obtenido es tal que:
+
+$$\text{CPU} = `r round(b0, 4)` + `r round(b1, 4)` \cdot \text{RPS}$$
+
+Representemos la recta visualmente, junto con la dispersión y las bandas de confianza y predicción:
+
+```{r recta_regresion_bronze, eval=TRUE, class.source="fold-hide", fig.height=7}
+rango_rps <- data.frame(RPS = seq(min(datos_bronze$RPS), max(datos_bronze$RPS), by = 1))
+bc <- predict(modelo_lin, interval = "confidence", newdata = rango_rps)
+bp <- predict(modelo_lin, interval = "prediction", newdata = rango_rps)
+
+plot(
+  datos_bronze$RPS, datos_bronze$CPU,
+  pch = 20, col = "#8E44AD",
+  xlab = "RPS (req/s)",
+  ylab = "CPU (%)",
+  main = paste0("Recta de regresión lineal CPU ~ RPS (Bronze)")
+)
+matlines(rango_rps$RPS, bc, lty = c(1, 2, 2), lwd = c(2, 1.5, 1.5), col = c("#5C068C", "blue", "blue"))
+matlines(rango_rps$RPS, bp, lty = c(0, 3, 3), lwd = 1.5, col = "red")
+legend(
+  "topleft",
+  legend = c("Recta ajustada", "Confianza", "Predicción"),
+  col = c("#5C068C", "blue", "red"),
+  lty = c(1, 2, 3),
+  lwd = c(2, 1.5, 1.5),
+  bty = "n"
+)
+```
+
+Tal como hemos venido observando, la recta de regresión no es perfecta, pero sí bastante buena. Podemos ver que en valores altos de `RPS`, la predicción será sensiblemente inferior a la realidad. Pero, ¿que tan cierto es esto?
+
+Sería más preciso evaluar los tramos altos de `RPS` y ver exactamente qué partes se desajusta del modelo. Para ello, podemos calcular los residuos y ver qué tan grandes son en relación a la predicción.
+
+```{r analisis_residuos_tramos}
+# tramo medio-alto
+datos_medio_alto <- subset(datos_bronze, RPS >= 25 & RPS < 30)
+media_obs_ma <- mean(datos_medio_alto$CPU)
+media_pred_ma <- mean(predict(modelo_lin, newdata = datos_medio_alto))
+dif_ma <- media_obs_ma - media_pred_ma
+
+# tramo alto o máximos
+datos_altos <- subset(datos_bronze, RPS >= 30 & RPS < 35)
+media_obs_altos <- mean(datos_altos$CPU)
+media_pred_altos <- mean(predict(modelo_lin, newdata = datos_altos))
+dif_altos <- media_obs_altos - media_pred_altos
+```
+
+En el tramo medio-alto ($25 <= RPS < 30$) el modelo tiende a subestimar ligeramente el consumo, ya que las observaciones se sitúan en promedio `` `r round(dif_ma, 1)` `` unidades por encima de la recta, con una media observada de `` `r round(media_obs_ma, 1)`% `` frente a la predicha de `` `r round(media_pred_ma, 1)`% ``.
+
+Sin embargo, esta tendencia no se mantiene en los picos máximos de tráfico ($30 <= RPS < 35$); en estos extremos, el consumo real vuelve a alinearse e incluso situarse por debajo de la predicción, con una diferencia promedio de apenas `` `r round(abs(dif_altos), 1)` `` unidades, y con media observada del `` `r round(media_obs_altos, 1)`% `` frente al `` `r round(media_pred_altos, 1)`% `` predicho.
+
+Dicho esto, intentemos predecir algunos valores de `CPU` a partir de la recta de regresión ($RPS = \{`r seq(5, 30, by = 5)`\}$).
+
+```{r recta_prediccion_bronze, eval=TRUE, class.source="fold-hide", fig.height=8}
+plot(
+  datos_bronze$RPS, datos_bronze$CPU,
+  pch = 20, col = "#8E44AD",
+  xlab = "RPS (req/s)",
+  ylab = "CPU (%)",
+  main = paste0("Recta de regresión lineal CPU ~ RPS (Bronze) con predicciones"),
+  ylim = c(min(bp[, "lwr"], datos_bronze$CPU), max(bp[, "upr"], datos_bronze$CPU))
+)
+abline(h = 0, col = "black", lty = 2, lwd = 2)
+matlines(rango_rps$RPS, bc, lty = c(1, 2, 2), lwd = c(2, 1.5, 1.5), col = c("#5C068C", "blue", "blue"))
+matlines(rango_rps$RPS, bp, lty = c(0, 3, 3), lwd = 1.5, col = "red")
+rps_de_5_en_5 <- data.frame(RPS = seq(5, 30, by = 5))
+predicciones_puntos <- predict(modelo_lin, newdata = rps_de_5_en_5)
+points(rps_de_5_en_5$RPS, predicciones_puntos, col = "red", pch = 19, cex = 1.2)
+legend(
+  "topleft",
+  legend = c("Recta ajustada", "Confianza", "Predicción"),
+  col = c("#5C068C", "blue", "red"),
+  lty = c(1, 2, 3, NA, 2),
+  pch = c(NA, NA, NA, 19, NA),
+  lwd = c(2, 1.5, 1.5, NA, 2),
+  bty = "n"
+)
+```
+
+Hemos ajustado el diagrama para poder observar el eje de abscisas en cero, de forma que podamos ver que la recta de regresión predice valores negativos de `CPU` para valores bajos de `RPS`; o valores sensiblemente más bajos que la realidad.
+
+```{r tabla_predicciones_bronze, eval=TRUE, class.source="fold-hide"}
+ic_ej <- predict(modelo_lin, interval = "confidence", newdata = rps_de_5_en_5)
+ip_ej <- predict(modelo_lin, interval = "prediction", newdata = rps_de_5_en_5)
+
+df_pred <- data.frame(
+  RPS = rps_de_5_en_5$RPS,
+  `CPU Media Estimada (%)` = round(ic_ej[, "fit"], 2),
+  `IC Media` = paste0("[", round(ic_ej[, "lwr"], 2), ", ", round(ic_ej[, "upr"], 2), "]"),
+  `IP Individual` = paste0("[", round(ip_ej[, "lwr"], 2), ", ", round(ip_ej[, "upr"], 2), "]"),
+  check.names = FALSE
+)
+
+exportar_tabla(
+  df_pred,
+  caption = "Predicciones de CPU a partir de RPS en servidores Bronze"
+)
+```
+
+### Análisis de los residuos
+
+Sería pertinente validar la inferencia de este modelo contrastando los supuestos de normalidad, homocedasticidad e independencia de los residuos.
+
+```{r analisis_residuos_bronze, eval=TRUE, fig.height=10, fig.width=10}
+par(mfrow = c(2, 2))
+plot(modelo_lin)
+```
+
+```{r tabla_hipotesis_bronze, eval=TRUE, class.source="fold-hide"}
+par(mfrow = c(1, 1))
+alpha <- 0.05
+
+er <- residuals(modelo_lin)
+
+sh_test <- shapiro.test(er)
+bp_test <- lmtest::bptest(modelo_lin)
+dw_test <- lmtest::dwtest(modelo_lin, alternative = "two.sided")
+
+df_hip <- data.frame(
+  Hipotesis_nula = c("Normalidad", "Homocedasticidad", "Independencia"),
+  Hipotesis_alternativa = c("No Normalidad", "Heterocedasticidad", "Dependencia"),
+  Contraste = c("Shapiro-Wilk", "Breusch-Pagan", "Durbin-Watson"),
+  Estadistico = c(
+    paste0("W = ", round(unname(sh_test$statistic), 4)),
+    paste0("BP = ", round(unname(bp_test$statistic), 4)),
+    paste0("DW = ", round(unname(dw_test$statistic), 4))
+  ),
+  p_valor = c(
+    round(sh_test$p.value, 4),
+    round(bp_test$p.value, 4),
+    round(dw_test$p.value, 4)
+  ),
+  Decision = c(
+    ifelse(sh_test$p.value >= alpha, "Se acepta $H_0$", "Se rechaza $H_0$"),
+    ifelse(bp_test$p.value >= alpha, "Se acepta $H_0$", "Se rechaza $H_0$"),
+    ifelse(dw_test$p.value >= alpha, "Se acepta $H_0$", "Se rechaza $H_0$")
+  ),
+  check.names = FALSE
+)
+colnames(df_hip) <- c("$H_0$", "$H_1$", "Contraste", "Estadístico", "p-valor", paste0("Decisión ($\\alpha = ", alpha, "$)"))
+
+exportar_tabla(
+  df_hip,
+  caption = "Contrastes de hipótesis para los residuos del modelo lineal CPU ~ RPS (Bronze)"
+)
+```
+
+Como podemos ver, se rechaza la normalidad de los residuos. Podemos observar la desviación en la parte superior derecha de `Q-Q Residuals`. Esto quiere decir que hay que tener cautela con los valores extremos, a la hora de realizar predicciones.
+
+Por otro lado, se acepta la homocedasticidad y la independencia de los residuos. Además, no encontramos puntos influyentes en el diagrama de `Residuals vs Leverage`.
+
+En `Residuals vs Fitted`, podemos ver claramente la forma en U de la línea roja de tendencia central. Esto sugiere que la relación entre `CPU` y `RPS` bien podría no ser lineal, sino quizás polinomial; a simple ojo, quizás cuadrática.
+
+De igual forma, aunque se acepta la igualdad de varianzas, la línea roja en `Scale-Location` no es completamente horizontal. Podemos apreciar una ligera caída en los valores bajos-medios.
+
+Aunque no tenemos valores extremadamente influyentes, sí que existen algunos que destacan especialmente en el diagrama de `Residuals vs Leverage`. Se trata de las observaciones `959`, `885` y `882`. Quizás sería interesante verlas más de cerca, para ver si tienen algún patrón o característica especial.
+
+```{r observacion_influyente_bronze, eval=TRUE, class.source="fold-hide"}
+exportar_tabla(
+  datos_bronze[c("959", "885", "882"), ],
+  caption = "Observaciones influyentes en el modelo lineal CPU ~ RPS (Bronze)"
+)
+```
+
+Como podemos ver, las observaciones `959` y `882` tienen un valor `RPS` muy bajo, por lo que el modelo predice un valor negativo de `CPU`. Tiene sentido que, al comparar el valor real con el predicho, el residuo sea muy grande.
+
+Por otro lado, la observación `885` es todo lo contrario, se trata de un caso de servidor con un estrés alto. Para un valor medio alto de `RPS`, el modelo predice un valor de `CPU` sensiblemente inferior al real, por lo que el residuo es también muy grande; recordemos nuestras observaciones sobre los tramos medios-altos y altos de `RPS`.
+
+### Conclusión interesante
+
+El hecho de que los residuos de nuestro modelo lineal sean homocedásticos e independientes, y además este siendo tan preciso, es interesante. Esto quiere decir que podemos pensar que por cada petición por segundo, aumenta o disminuye el consumo de procesador en una cantidad constante.
+
+Es decir, si tomamos la pendiente de la recta de regresión, podemos decir que por cada petición por segundo, el consumo de procesador aumenta en `` `r round(b1, 4)`% `` (*ojo, nos referimos a puntos porcentuales del valor `CPU`, y no a que aumenta relativamente*).
+
+Siguiendo esta lógica, se podría diseñar un sistema de prevención de sobrecarga o distribución de carga, con bastante fiabilidad, de modo que si el volumen de tráfico aumenta, se evita saturar un servidor concreto.
+
+Nótese que esto no sería posible si no tuviéramos una relación fuerte entre el uso de procesador y el volumen de tráfico. Es el hecho de haber encontrado una regla simple y constante, lo que nos permite diseñar dicho sistema de prevención y distribución de carga.
+
+Si la relación fuera menos predecible, no sabríamos cómo reaccionar ante un aumento de tráfico, pues, tendríamos muchos falsos positivos (el tráfico aumenta pero no se ve reflejado en el consumo de procesador) y falsos negativos (el trafico no aumenta y, sin embargo, el consumo de procesador sí).
