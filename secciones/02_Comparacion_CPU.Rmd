@@ -62,7 +62,8 @@ hlist <- sapply(id, function(i) hist(
   col = paleta_morada[i],  # Color asignado a cada nivel de Efficiency
   main = labs_eff[i],      # Título de cada subgráfico
   xlab = "Uso de CPU (%)",
-  ylab = "Densidad"
+  ylab = "Densidad",
+  breaks = seq(0, 100, by = 10)
 ))
 par(mfrow = c(1, 1))
 ```
