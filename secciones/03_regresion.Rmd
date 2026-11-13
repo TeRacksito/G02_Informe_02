@@ -1,24 +1,20 @@
-## Uso de CPU vs Tráfico RPS
+## Uso de CPU vs Tráfico RPS para servidores de eficiencia energética "Bronze"
 
-En este apartado, vamos a modelizar la relación entre las variables `CPU` y `RPS` mediante
-regresión linea. Más específicamente, nos enfocaremos en las observaciones correspondientes
-a `Efficiency == "Bronze"`, es decir, los servidores de menor eficiencia energética.
+En este apartado, vamos a modelizar la relación entre las variables `CPU` y `RPS` mediante regresión linea. Más específicamente, nos enfocaremos en las observaciones correspondientes a `Efficiency == "Bronze"`, es decir, los servidores de menor eficiencia energética.
 
-Queremos ver si existe dicha relación y si es posible predecir, en este caso, 
-el consumo de `CPU` a partir del volumen de tráfico `RPS`.
+Queremos ver si existe dicha relación y si es posible predecir, en este caso, el consumo de `CPU` a partir del volumen de tráfico `RPS`.
 
 ### Datos y modelo
 
 Es necesario primero conocer los datos y su distribución.
 
-La variable continua dependiente `CPU` representa, en porcentaje, el consumo de procesador
-de un servidor; en un instante de tiempo determinado.
+La variable continua dependiente `CPU` representa, en porcentaje, el consumo de procesador de un servidor; en un instante de tiempo determinado.
 
-La variable discreta independiente `RPS` representa, en peticiones por segundo, 
-el volumen de tráfico que recibe un servidor; en un instante de tiempo determinado.
+La variable continua independiente `RPS` representa, en peticiones por segundo, el volumen de tráfico que recibe un servidor; en un instante de tiempo determinado.
 
-Por último, el atributo ordinal condicionante `Efficiency` representa, en una escala de tres
-categorías o etiquetas, la eficiencia energética de un servidor.
+Tratamos esta variable como continua sin agrupamiento en pos de beneficiar el modelo. Si tuviéramos que estudiar su tabla de frecuencias o histograma (o parecidos), entonces sí sería pertinente realizar un agrupamiento mediante la regla de Sturges, por ejemplo evitando cometer el mismo error que se cometió en el Informe 01.
+
+Por último, el atributo ordinal condicionante `Efficiency` representa, en una escala de tres categorías o etiquetas, la eficiencia energética de un servidor.
 
 ### Modelo de Regresión y Ajuste
 
