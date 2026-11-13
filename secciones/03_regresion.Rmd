@@ -13,7 +13,7 @@ Queremos ver si existe dicha relación y si es posible predecir, en este caso, e
 
 ### Descripción de los datos
 
-Es necesario primero conocer los datos:
+Aunque en apartados anteriores ya se ha descrito alguna de estas variables, es apropiado definir claramente con qué trabajamos, sin lugar a confusión:
 
 La variable continua dependiente `CPU` representa, en porcentaje, el consumo de procesador de un servidor; en un instante de tiempo determinado.
 
@@ -420,3 +420,112 @@ Siguiendo esta lógica, se podría diseñar un sistema de prevención de sobreca
 Nótese que esto no sería posible si no tuviéramos una relación fuerte entre el uso de procesador y el volumen de tráfico. Es el hecho de haber encontrado una regla simple y constante, lo que nos permite diseñar dicho sistema de prevención y distribución de carga.
 
 Si la relación fuera menos predecible, no sabríamos cómo reaccionar ante un aumento de tráfico, pues, tendríamos muchos falsos positivos (el tráfico aumenta pero no se ve reflejado en el consumo de procesador) y falsos negativos (el trafico no aumenta y, sin embargo, el consumo de procesador sí).
+
+### Apartado extra: ¿Modelo no lineal?
+
+Sería interesante explorar la posibilidad de un modelo no lineal.
+
+Recordemos que hemos detectado una forma en U en el diagrama de `Residuals vs Fitted`, lo que sugiere que la relación entre `CPU` y `RPS` podría no ser lineal, sino quizás polinomial. Vamos a probar con un modelo cuadrático; y compararemos los resultados con el modelo lineal que hemos obtenido.
+
+$$\text{CPU} = \beta_{0} + \beta_{1} \cdot \text{RPS} + \beta_{2} \cdot \text{RPS}^{2}$$
+
+Voy a realizar una hipótesis nula $H_{0}:~\beta_{2} = 0$ y una hipótesis alternativa $H_{1}:~\beta_{2} \neq 0$. Es decir, si el coeficiente de la variable cuadrática es significativamente distinto de cero, entonces podemos decir que el modelo cuadrático es mejor que el lineal.
+
+```{r modelo_cuadratico_anova, eval=TRUE, class.source="fold-hide"}
+modelo_cuad <- lm(CPU ~ RPS + I(RPS^2), data = datos_bronze)
+sum_cuad <- summary(modelo_cuad)
+
+b0_c <- unname(coef(modelo_cuad)[1])
+b1_c <- unname(coef(modelo_cuad)[2])
+b2_c <- unname(coef(modelo_cuad)[3])
+r2_c <- sum_cuad$r.squared
+r2_adj_c <- sum_cuad$adj.r.squared
+se_c <- sum_cuad$sigma
+
+# bondad
+df_comp_modelos <- data.frame(
+  Modelo = c("Lineal (CPU ~ RPS)", "Cuadrático (CPU ~ RPS + RPS²)"),
+  `R^2` = round(c(r2, r2_c), 4),
+  `R^2 Ajustado` = round(c(r2_adj, r2_adj_c), 4),
+  `Error Estándar (se)` = round(c(se, se_c), 4),
+  AIC = round(c(AIC(modelo_lin), AIC(modelo_cuad)), 2),
+  check.names = FALSE
+)
+
+exportar_tabla(
+  df_comp_modelos,
+  caption = "Comparativa de bondad del ajuste entre el modelo lineal y el cuadrático (Bronze)"
+)
+
+# anova de los modelos
+anova_comp <- anova(modelo_lin, modelo_cuad)
+df_diff <- anova_comp[["Df"]][2]
+rss_diff <- anova_comp[["Sum of Sq"]][2]
+f_comp <- anova_comp[["F"]][2]
+p_comp <- anova_comp[["Pr(>F)"]][2]
+
+df_anova_comp <- data.frame(
+  Modelo = c("Lineal", "Cuadrático"),
+  gl_resid = anova_comp[["Res.Df"]],
+  RSS = round(anova_comp[["RSS"]], 2),
+  Dif_gl = c("-", df_diff),
+  Reduccion_RSS = c("-", round(rss_diff, 2)),
+  Estadistico_F = c("-", round(f_comp, 2)),
+  p_valor = c("-", format.pval(p_comp, eps = 2.2e-16, scientific = TRUE)),
+  check.names = FALSE
+)
+colnames(df_anova_comp) <- c(
+  "Modelo", "gl residuales", "Suma Cuadrados Resid. (RSS)",
+  "Dif. gl", "Reducción RSS", "Estadístico F", "p-valor"
+)
+
+exportar_tabla(
+  df_anova_comp,
+  caption = "Contraste ANOVA comparativo: modelo lineal frente a modelo cuadrático"
+)
+
+bp_cuad <- lmtest::bptest(modelo_cuad)
+```
+
+La ecuación que obtenemos es:
+
+$$\text{CPU} = `r round(b0_c, 4)` + `r round(b1_c, 4)` \cdot \text{RPS} + `r round(b2_c, 4)` \cdot \text{RPS}^{2}$$
+
+Como podemos observar, el estadístico $F = `r round(f_comp, 2)`$ con un p-valor muy bajo (menor que $10^{-16}$), por lo que podemos rechazar la hipótesis nula $H_{0}:~\beta_{2} = 0$. Esto quiere decir que el modelo cuadrático es significativamente mejor que el lineal, y que la relación entre `CPU` y `RPS` no es lineal, sino cuadrática.
+
+Representamos el nuevo modelo cuadrático junto con sus bandas de confianza y de predicción, tomando la recta lineal como referencia:
+
+```{r recta_cuadratica_bandas, eval=TRUE, class.source="fold-hide", fig.height=6.5}
+bc_cuad <- predict(modelo_cuad, interval = "confidence", newdata = rango_rps)
+bp_cuad <- predict(modelo_cuad, interval = "prediction", newdata = rango_rps)
+
+plot(
+  datos_bronze$RPS, datos_bronze$CPU,
+  pch = 20, col = "#8E44AD",
+  xlab = "RPS (req/s)",
+  ylab = "CPU (%)",
+  main = "Modelo cuadrático CPU ~ RPS + RPS² (Bronze)",
+  ylim = c(min(bp_cuad[, "lwr"], datos_bronze$CPU), max(bp_cuad[, "upr"], datos_bronze$CPU))
+)
+abline(h = 0, col = "black", lty = 2, lwd = 1.5)
+lines(rango_rps$RPS, bc[, "fit"], col = "gray45", lty = 4, lwd = 1.5)
+matlines(rango_rps$RPS, bc_cuad, lty = c(1, 2, 2), lwd = c(2, 1.5, 1.5), col = c("#5C068C", "blue", "blue"))
+matlines(rango_rps$RPS, bp_cuad, lty = c(0, 3, 3), lwd = 1.5, col = "red")
+legend(
+  "topleft",
+  legend = c(
+    "Ajuste cuadrático",
+    "Ajuste lineal",
+    "IC media",
+    "IP individual"
+  ),
+  col = c("#5C068C", "gray45", "blue", "red"),
+  lty = c(1, 4, 2, 3),
+  lwd = c(2, 1.5, 1.5, 1.5),
+  bty = "n"
+)
+```
+
+Es fácil ver que el modelo cuadrático se ajusta mejor a la curvatura inferior, corrigiendo, casi por completo, el problema de predicciones negativas para valores bajos de `RPS`.
+
+Sería interesante comparar los residuos de ambos modelos, para ver si el modelo cuadrático mejora la normalidad de los residuos.
