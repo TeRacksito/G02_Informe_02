@@ -11,13 +11,36 @@ library(here)
 
 # Definimos la paleta morada (imprescindible para los gráficos)
 paleta_morada <- c("#E8DAEF", "#C39BD3", "#8E44AD", "#5C068C")
+
+if (!exists("datos_cloud")) {
+  source(here::here("scripts", "Utilidades.R"))
+  rutas_posibles <- c(
+    here::here("data", "raw", "Cloud_Performance_01.csv"),
+    here::here("Cloud_Performance_01.csv"),
+    "Cloud_Performance_01.csv",
+    "../Cloud_Performance_01.csv"
+  )
+  ruta_csv <- rutas_posibles[file.exists(rutas_posibles)][1]
+  datos_cloud <- read.csv(
+    ruta_csv,
+    stringsAsFactors = FALSE,
+    na.strings = c("NA", "", " ")
+  )
+  datos_cloud$CPU <- as.numeric(datos_cloud$CPU)
+  datos_cloud$CPU[datos_cloud$CPU < 0] <- NA
+  datos_cloud$Efficiency <- factor(
+    datos_cloud$Efficiency,
+    levels = c("Bronze", "Silver", "Gold"),
+    ordered = TRUE
+  )
+}
 ```
 
-## Análisis comparativo del porcentaje de uso del procesador (`Cpu`) entre los niveles de eficiencia (`Efficiency`)
+## Análisis comparativo del porcentaje de uso del procesador (`CPU`) entre los niveles de eficiencia (`Efficiency`)
 
 En este apartado analizaremos el comportamiento de la variable continua **`CPU`** (porcentaje de uso de capacidad de procesador consumido por las tareas del nodo, en `%`) agrupada según los niveles del atributo ordinal **`Efficiency`** (clasificación energética y de eficiencia del hardware asignado al servidor: `Bronze < Silver < Gold`). El objetivo es comparar la distribución de `CPU` entre los tres grupos mediante gráficos, medidas descriptivas y los contrastes estadísticos apropiados.
 
-### Histograma Adosados por Grupos
+### Histogramas Adosados por Grupos
 
 Para comparar la distribución de una variable continua según los grupos definidos por un factor, dividimos el conjunto de datos `datos_cloud` mediante `split()` y representamos los histogramas de densidad (`freq = FALSE`) con escalas comunes en ambos ejes.
 
@@ -41,9 +64,10 @@ hlist <- sapply(id, function(i) hist(
   xlab = "Uso de CPU (%)",
   ylab = "Densidad"
 ))
+par(mfrow = c(1, 1))
 ```
 
-Según se puede apreciar en la Figura \@ref(fig:hist-group-cpu), a primera vista los tres niveles de eficiencia (`Bronze`, `Silver` y `Gold`) presentan un perfil global bastante parecido: en los tres casos la distribución es claramente **asimétrica a la derecha**, alcanzando su moda (la barra de mayor densidad, en torno a $0.031 - 0.037$) en el intervalo del **$10\%$ al $20\%$ de uso de `CPU`** y extendiendo una cola hacia valores altos de carga.
+Según se puede apreciar en la figura de los histogramas adosados, a primera vista los tres niveles de eficiencia (`Bronze`, `Silver` y `Gold`) presentan un perfil global bastante parecido que refleja el comportamiento habitual de una infraestructura *cloud*: en los tres casos la distribución es claramente **asimétrica a la derecha**, alcanzando su moda (la barra de mayor densidad, en torno a $0.031 - 0.037$) en el intervalo del **$10\%$ al $20\%$ de uso de `CPU`** y extendiendo una cola derecha originada por los picos de concurrencia en horas punta.
 
 No obstante, si comparamos con detenimiento los tramos de cada histograma, se observan diferencias sutiles pero importantes al mejorar la eficiencia del hardware:
 
@@ -83,14 +107,14 @@ exportar_tabla(
   column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
 ```
 
-Como refleja la tabla de medidas de forma:
+Como refleja la tabla de medidas de forma (asimetría y curtosis):
 
-- Todos los coeficientes de **asimetría** son positivos ($0.874$ en `Bronze`, $0.932$ en `Silver` y $1.344$ en `Gold`), lo que confirma la **asimetría positiva (a la derecha)** en los tres grupos, siendo mucho más pronunciada en el nivel **Gold**.
+- Todos los coeficientes de **asimetría** son positivos ($0.874$ en `Bronze`, $0.932$ en `Silver` y $1.344$ en `Gold`), lo que confirma numéricamente la **asimetría positiva (a la derecha)** en los tres grupos, siendo mucho más pronunciada en el nivel **Gold**.
 - El signo negativo del coeficiente de **curtosis** en los niveles **Bronze** ($-0.349$) y **Silver** ($-0.130$) indica que las distribuciones de `CPU` son ligeramente menos apuntadas que la distribución normal (**platicúrticas**), presentando por tanto una mayor dispersión. Por el contrario, en el nivel **Gold** el coeficiente de curtosis es positivo ($1.110$), lo que indica que la distribución es más apuntada que la normal (**leptocúrtica**) y concentra fuertemente sus valores en el rango bajo de consumo.
 
 #### Diagrama de Caja y Patillas y Datos Atípicos
 
-Representamos el diagrama de caja y patillas por grupos (Figura \@ref(fig:Diagrama-Caj-Pat-cpu)) y extraemos en una tabla el número total de valores atípicos, el mínimo, el máximo y los tres valores más altos de cada nivel con `Outlier()` de `DescTools`.
+Representamos el diagrama de caja y patillas por grupos y extraemos en una tabla el número total de valores atípicos, el mínimo, el máximo y los tres valores más altos de cada nivel con `Outlier()` de `DescTools`.
 
 ```{r Diagrama-Caj-Pat-cpu, fig.cap="Diagramas de Caja y Patillas de CPU por niveles de Efficiency", echo=TRUE, eval=TRUE, results='hold'}
 # Diagrama de caja y patillas por cada grupo
@@ -133,11 +157,10 @@ exportar_tabla(
   column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
 ```
 
-El diagrama de caja y patillas que presenta la Figura \@ref(fig:Diagrama-Caj-Pat-cpu) y la tabla de resumen de atípicos muestran notables diferencias en el porcentaje de uso de `CPU` según el nivel de eficiencia del hardware:
+El diagrama de caja y patillas y la tabla de resumen de valores atípicos muestran notables diferencias en el porcentaje de uso de `CPU` según el nivel de eficiencia del hardware:
 
-- **Tendencia decreciente:** Tanto la mediana como los cuartiles descienden progresivamente al pasar de `Bronze` a `Silver` y de `Silver` a `Gold`.
-- **Asimetría:** Corrobora lo observado en los histogramas y las medidas de forma respecto a la asimetría a la derecha en los tres niveles, dado que la mediana está más próxima al primer cuartil ($Q_1$) que al tercer cuartil ($Q_3$) y la patilla superior es mucho más larga que la inferior.
-- **Dispersión central y valores extremos:** Aunque en el nivel **Gold** el $50\%$ central de los datos (la caja) está mucho más concentrado que en los otros dos niveles, presenta un número bastante notable de valores extremos o atípicos en su cola superior (**$25$ valores atípicos** a partir de $63.17\%$, alcanzando un máximo de $89.09\%$), frente a **$1$ único dato atípico** en el grupo **Silver** ($87.28\%$) y **ninguno** en el grupo **Bronze**.
+- **Tendencia decreciente y asimetría:** Tanto la mediana como los cuartiles descienden progresivamente al pasar de `Bronze` a `Silver` y de `Silver` a `Gold`. Asimismo, se corrobora la asimetría a la derecha en los tres niveles, dado que la mediana está más próxima al primer cuartil ($Q_1$) que al tercer cuartil ($Q_3$) y la patilla superior es más larga que la inferior.
+- **Interpretación de los valores atípicos en `Gold`:** Destaca la presencia de **$25$ valores atípicos** en la cola superior del grupo **Gold** (entre $63.17\%$ y $89.09\%$), frente a **$1$ único dato atípico** en **Silver** ($87.28\%$) y **ninguno** en **Bronze**[cite: 4]. Esto no indica un peor funcionamiento de los nodos `Gold`, sino todo lo contrario: al estar el $50\%$ central de sus datos mucho más concentrado en consumos bajos (distribución leptocúrtica), el límite superior de la patilla es más bajo y cualquier pico puntual de tráfico crítico destaca estadísticamente como valor extremo respecto a su régimen habitual de baja carga.
 
 #### Medidas de Posición y Dispersión
 
@@ -183,9 +206,8 @@ exportar_tabla(
 
 Al analizar la tabla de medidas de posición y dispersión observamos que:
 
-- **Alta dispersión relativa (`CV`):** El **Coeficiente de Variación de Pearson (`CV`)** presenta valores muy elevados en los tres niveles ($64.171\%$ en `Bronze`, $66.521\%$ en `Silver` y $70.217\%$ en `Gold`), superando ampliamente el umbral habitual de homogeneidad ($30\%$). Esto demuestra que la dispersión respecto a la media es considerable en todos los servidores —siendo incluso mayor en términos relativos en `Gold` debido a su baja media y a sus picos atípicos— y confirma que **la media aritmética no es una medida representativa** en ninguno de los grupos.
-- Debido a la asimetría positiva y a la presencia de valores extremos en la cola derecha, la **media es superior a la mediana** en los tres niveles ($32.148\%$ vs. $25.305\%$ en `Bronze`; $29.575\%$ vs. $23.220\%$ en `Silver`; $25.648\%$ vs. $19.350\%$ en `Gold`), por lo que la **mediana y el rango intercuartílico (`IQR`)** resultan más representativos.
-- El consumo mediano de `CPU` se reduce de **$25.305\%$** en `Bronze` y **$23.220\%$** en `Silver` hasta **$19.350\%$** en `Gold`. Asimismo, la dispersión del $50\%$ central de los datos (`IQR`) pasa de $28.685\%$ en `Bronze` y $28.205\%$ en `Silver` a tan solo **$20.210\%$** en `Gold` (donde el $75\%$ de los servidores consume menos de un $32.302\%$ de CPU, frente al $44.733\%$ en `Bronze`).
+- **Alta dispersión relativa (`CV`) y elección de medidas robustas:** El **Coeficiente de Variación de Pearson (`CV`)** toma valores muy elevados en los tres niveles ($64.171\%$ en `Bronze`, $66.521\%$ en `Silver` y $70.217\%$ en `Gold`), superando ampliamente el umbral habitual de homogeneidad ($30\%$). Sumado a la asimetría positiva y a los atípicos de la cola derecha, esto provoca que la **media sea superior a la mediana** en todos los grupos ($32.148\%$ vs. $25.305\%$ en `Bronze`; $29.575\%$ vs. $23.220\%$ en `Silver`; $25.648\%$ vs. $19.350\%$ en `Gold`), confirmando que la **mediana y el rango intercuartílico (`IQR`)** son las medidas más robustas y representativas para comparar los servidores.
+- **Reducción efectiva del consumo y la dispersión en `Gold`:** El uso mediano de `CPU` desciende progresivamente de **$25.305\%$** en `Bronze` y **$23.220\%$** en `Silver` hasta **$19.350\%$** en `Gold` (casi $6$ puntos porcentuales menos que en `Bronze`). Asimismo, la dispersión central (`IQR`) se reduce de $28.685\%$ en `Bronze` y $28.205\%$ en `Silver` a tan solo **$20.210\%$** en `Gold`, situándose su tercer cuartil ($Q_3$) en el **$32.302\%$** (frente al $44.733\%$ en `Bronze`). Es decir, el $75\%$ de los servidores con hardware `Gold` opera por debajo de un tercio de su capacidad de cómputo.
 
 #### Resumen Descriptivo por Grupos y Contraste de Hipótesis
 
@@ -230,33 +252,12 @@ exportar_tabla(
 pairwise.wilcox.test(datos_cloud$CPU, datos_cloud$Efficiency, p.adjust.method = "bonferroni")
 ```
 
-**Interpretación razonada de los resultados de los tests:**
+**Interpretación razonada de los contrastes y conclusión del apartado:**
 
-1. **Comprobación de normalidad y elección del test:** Como recoge la tabla del test de normalidad de **Shapiro-Wilk**, se obtiene un $p\text{-valor}$ prácticamente nulo en los tres grupos ($1.98 \times 10^{-12}$ en `Bronze`, $7.17 \times 10^{-16}$ en `Silver` y $1.66 \times 10^{-18}$ en `Gold`), rechazándose la hipótesis de normalidad en todos ellos. Por este motivo, en lugar de un ANOVA paramétrico clásico, debemos emplear la prueba no paramétrica de **Kruskal-Wallis (ANOVA por rangos)** proporcionada en la salida de `Desc()`.
+1. **Comprobación de normalidad y elección del test:** Como recoge la tabla de resultados del test de normalidad de **Shapiro-Wilk**, se obtiene un $p\text{-valor}$ prácticamente nulo en los tres grupos ($1.98 \times 10^{-12}$ en `Bronze`, $7.17 \times 10^{-16}$ en `Silver` y $1.66 \times 10^{-18}$ en `Gold`), rechazándose la hipótesis de normalidad en todos ellos. Al incumplirse este supuesto requerido por el ANOVA paramétrico, empleamos la prueba no paramétrica de **Kruskal-Wallis (ANOVA por rangos)** proporcionada en la salida de `Desc()`.
 2. **Contraste de Kruskal-Wallis:**
    - **Hipótesis nula ($H_0$):** El comportamiento del porcentaje de uso del procesador (`CPU`) es igual en los tres niveles de eficiencia (`Efficiency`); es decir, las variables son independientes.
    - **Hipótesis alternativa ($H_1$):** Existen diferencias significativas en la distribución de `CPU` según el nivel de `Efficiency` (las variables son dependientes).
-   - En la salida del procedimiento `Desc()` se observa que el estadístico de Kruskal-Wallis (distribuido como una $\chi^2$ con $2$ grados de libertad) toma el valor **$\chi^2 = 19.04$** con un **$p\text{-valor} = 7.35 \times 10^{-5}$** (próximo a $0$ e inferior a $\alpha = 0.05$).
-   - **Conclusión:** Se rechaza la hipótesis nula $H_0$. Existen evidencias estadísticas de dependencia entre las variables; esto es, **el porcentaje de uso del procesador (`CPU`) depende significativamente del nivel de eficiencia energética del hardware (`Efficiency`)**.
-3. **Comparaciones por pares (Wilcoxon):** Aunque la salida de `Desc()` ya incluye el test de Kruskal-Wallis, este solo nos indica de forma general que existen diferencias entre los tres niveles, pero no detalla entre qué grupos concretos se producen dichas diferencias. Por ello, añadimos `pairwise.wilcox.test` (que aplica el test no paramétrico de Wilcoxon dos a dos con la corrección de Bonferroni para ajustar el nivel de significación al realizar varias comparaciones simultáneas). Los resultados confirman que las diferencias estadísticamente significativas se producen al comparar el nivel **Gold frente a Bronze** ($p\text{-valor} = 5.5 \times 10^{-5} < 0.05$) y **Gold frente a Silver** ($p\text{-valor} = 0.0167 < 0.05$), mientras que entre `Bronze` y `Silver` la diferencia no es significativa al $5\%$ ($p\text{-valor} = 0.2417$). Se demuestra así que únicamente la asignación de hardware **Gold** disminuye de forma significativa la carga de procesador de los nodos.
-
-#### Interpretación Razonada y Conclusiones del Análisis Comparativo
-
-A partir de las representaciones gráficas, las medidas descriptivas y los contrastes de hipótesis realizados sobre el porcentaje de uso del procesador (`CPU`) según la clasificación de eficiencia del hardware (`Efficiency`: `Bronze < Silver < Gold`), se extraen las siguientes conclusiones razonadas:
-
-1. **Comportamiento de las distribuciones y elección de medidas representativas:**
-   - Tanto los histogramas como los coeficientes de forma muestran que el consumo de `CPU` presenta una marcada **asimetría positiva (a la derecha)** en los tres niveles de eficiencia ($g_1 = 0.874$ en `Bronze`, $0.932$ en `Silver` y $1.344$ en `Gold`). Esto refleja el comportamiento real de una infraestructura *cloud*: durante la mayor parte del tiempo los servidores operan bajo regímenes de carga bajos o moderados (concentrando la moda entre el $10\%$ y el $20\%$ de uso de `CPU`), mientras que los picos de concurrencia en horas punta generan una cola derecha hacia valores de alta saturación ($> 60\%$).
-   - Debido a esta falta de simetría, a la presencia de valores extremos en la cola derecha y a los elevados **Coeficientes de Variación de Pearson** ($CV > 64\%$ en todos los grupos), la media aritmética pierde representatividad y se ve desplazada hacia arriba ($32.15\%$, $29.57\%$ y $25.65\%$, respectivamente). Por ello, **la mediana y el rango intercuartílico (`IQR`) resultan las medidas más robustas y fiables** para comparar el rendimiento real de los nodos.
-
-2. **Efecto del nivel de eficiencia del hardware sobre el consumo de procesador:**
-   - Se observa una **reducción clara y progresiva del uso de `CPU` conforme aumenta la gama del hardware**: el consumo mediano desciende del **$25.31\%$ en `Bronze`** al **$23.22\%$ en `Silver`**, y cae hasta el **$19.35\%$ en `Gold`** (casi $6$ puntos porcentuales menos que en `Bronze`).
-   - Más importante aún desde el punto de vista operativo es la disminución de la dispersión central: el rango intercuartílico (`IQR`) se reduce de **$28.69\%$ en `Bronze`** y **$28.21\%$ en `Silver`** a tan solo **$20.21\%$ en `Gold`**, situándose el tercer cuartil ($Q_3$) de los servidores `Gold` en el $32.30\%$ (frente al $44.73\%$ en `Bronze`). Esto significa que el $75\%$ de los servidores con hardware `Gold` trabaja por debajo de un tercio de su capacidad de cómputo.
-   - La aparición de **$25$ datos atípicos en el grupo `Gold`** (valores entre $63.17\%$ y $89.09\%$) en el diagrama de caja y patillas no indica un peor funcionamiento, sino todo lo contrario: al estar el $50\%$ central de los nodos `Gold` tan fuertemente concentrado en consumos bajos ($12.09\%$ a $32.30\%$, distribución leptocúrtica con curtosis $1.110$), los momentos puntuales de tráfico crítico destacan estadísticamente como valores extremos respecto a su régimen habitual de baja carga.
-
-3. **Justificación y resolución de los contrastes estadísticos:**
-   - La aplicación del **test de Shapiro-Wilk** en cada nivel rechaza de forma contundente la hipótesis nula de normalidad en los tres grupos ($p\text{-valor} < 10^{-11} < \alpha = 0.05$). Al incumplirse el supuesto de normalidad requerido por el ANOVA paramétrico, la comparación formal entre grupos debe basarse en el **Test no paramétrico de Kruskal-Wallis (ANOVA por rangos)**.
-   - El contraste de **Kruskal-Wallis** arroja un estadístico $\chi^2 = 19.04$ con $2$ grados de libertad y un **$p\text{-valor} = 7.35 \times 10^{-5} < 0.05$**, lo que permite **rechazar la hipótesis nula de independencia ($H_0$)**. Se demuestra estadísticamente que el porcentaje de uso del procesador (`CPU`) depende de la categoría de eficiencia del hardware (`Efficiency`).
-   - Las comparaciones múltiples *post-hoc* mediante el **test de Wilcoxon con corrección de Bonferroni** precisan dónde radica exactamente esa diferencia: entre los servidores **`Bronze` y `Silver` no existen diferencias estadísticamente significativas** ($p\text{-valor} = 0.2417 > 0.05$), pero el salto hacia el hardware **`Gold` sí produce una reducción estadísticamente significativa del consumo de `CPU`**, tanto frente a `Silver` ($p\text{-valor} = 0.0167 < 0.05$) como muy especialmente frente a `Bronze` ($p\text{-valor} = 5.5 \times 10^{-5} < 0.05$).
-
-4. **Conclusión conjunta para el diagnóstico de la infraestructura Cloud:**
-   - Si conectamos este resultado con el obtenido en la Tarea 1 (donde se demostró que el nivel de tráfico `Load_Level` es independiente de `Efficiency`, recibiendo los tres tipos de servidores la misma proporción de carga), se concluye que **la menor saturación de `CPU` en los nodos `Gold` se debe exclusivamente a la mayor capacidad y eficiencia de su arquitectura de hardware**. Mientras que actualizar de `Bronze` a `Silver` apenas supone una mejora marginal no significativa en el procesador, la inversión en instancias de categoría **`Gold`** garantiza una descongestión real y estadísticamente probada de los nodos.
+   - **Resolución:** El estadístico de Kruskal-Wallis toma el valor **$\chi^2 = 19.04$** ($2$ grados de libertad) con un **$p\text{-valor} = 7.35 \times 10^{-5} < \alpha = 0.05$**. En consecuencia, **rechazamos la hipótesis nula $H_0$** y concluimos que el porcentaje de uso de `CPU` depende significativamente del nivel de eficiencia energética del hardware.
+3. **Comparaciones por pares (Wilcoxon con ajuste de Bonferroni):** Dado que el test de Kruskal-Wallis es una prueba global, aplicamos `pairwise.wilcox.test` para identificar entre qué grupos concretos se producen las diferencias. Los resultados confirman que existen diferencias estadísticamente significativas al comparar **Gold frente a Bronze** ($p\text{-valor} = 5.5 \times 10^{-5} < 0.05$) y **Gold frente a Silver** ($p\text{-valor} = 0.0167 < 0.05$), mientras que entre **Bronze y Silver** la diferencia no resulta significativa ($p\text{-valor} = 0.2417 > 0.05$).
+4. **Diagnóstico global para la infraestructura Cloud:** Conectando este resultado con el del análisis categórico previo (donde se demostró que el nivel de tráfico entrante `Load_Level` es independiente de `Efficiency`, recibiendo los tres tipos de servidores la misma proporción de carga), se concluye que **la menor saturación de `CPU` en los nodos `Gold` responde exclusivamente a la mayor capacidad y eficiencia de su arquitectura de hardware**. Mientras que actualizar de `Bronze` a `Silver` apenas supone una mejora marginal no significativa, la inversión en instancias de categoría **`Gold`** garantiza una descongestión real y estadísticamente probada del procesador.
