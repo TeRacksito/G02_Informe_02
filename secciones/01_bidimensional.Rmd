@@ -45,6 +45,8 @@ kbl(df_tabla1,
 
 ```
 
+Como vemos en la Tabla \@ref(tab:tabla-contingencia-abs), analizamos una muestra de $N = 1000$ servidores. La mayoría de la infraestructura está formada por nodos `Silver` y `Gold`, frente a los `Bronze`. En cuanto a la carga, el estado más común es el `Medium` y el `Low`, mientras que los picos de estrés `Critical` y `High` son menos frecuentes.
+
 ### Distribución relativa Conjunta y Condicionada
 
 A partir de las frecuencias absolutas de la tabla \@ref(tab:tabla-contingencia-abs), calculamos las frecuencias relativas conjuntas ($f_{ij}$) en la tabla \@ref(tab:tabla-contingencia-rel) y la distribución de `Load_Level`condicionada a cada nivel de `Efficiency` en porcentaje en la Tabla \@ref(tab:tabla-condicionada-col).
@@ -77,6 +79,8 @@ kbl(df_tabla2,
   column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
 ```
 
+Sin embargo, para ver realmente si hay dependencia, lo mejor es mirar la distribución condicionada (porcentajes por columna). Esto nos dice cómo se reparte la carga dentro de cada tipo de hardware.
+
 ```{r tabla-condicionada-col}
 # -------------------------------------------------------------
 #  Distribución Condicionada P(Load_Level | Efficiency) en %
@@ -104,6 +108,8 @@ kbl(df_tabla3,
   column_spec(1, background = "#5C068C", color = "white", bold = TRUE)
 ```
 
+Si miramos la tabla, los porcentajes son muy parecidos en las tres columnas. Por ejemplo, el estado `Critical` se mantiene bastante estable: $19.35\%$ en `Bronze`, $22.40\%$ en `Silver` y $18.48\%$ en `Gold`. Lo mismo ocurre con el nivel `Medium` ($33.06\%$ frente a $33.85\%$ y $38.86\%$). Como no hay grandes saltos entre el hardware eficiente y el menos eficiente, esto ya nos da una buena pista de que las variables son independientes.
+
 ### Representación Gráfica Conjunta y Condicionada
 
 Para visualizar tanto el volumen de servidores en cada combinación como la estabilidad de las distribuciones condicionadas, representamos el diagrama de sectores bidimensional (`PlotCirc`) en la figura \@ref(fig:grafico-sectores) y los diagramas de barras condicionadas junto al diagrama de mosaico de la Figura \@ref(fig:graficos-condicionados).
@@ -119,6 +125,8 @@ PlotCirc(tabla,
          rcol = col_cols,
          main = "Diagrama de Sectores Bidimensional: Nivel de carga / Eficiencia")
 ```
+
+En este diagrama se ve bien cómo se reparten los flujos de asignación. El grosor de las bandas respeta el tamaño total de cada grupo, y se nota que las líneas que salen de `Bronze`, `Silver` y `Gold` se ramifican hacia los estados de carga de manera muy proporcional y equilibrada.
 
 ```{r graficos-condicionados, fig.cap="Distribución condicionada de Load_Level dado Efficiency: barras adosadas, apiladas, mosaico", fig.align="center", fig.width=11, fig.height=4.5}
 # Proporciones condicionadas por columna P(Load_Level | Efficiency)
@@ -157,11 +165,11 @@ plot(t(prop_cond),
 par(mfrow = c(1, 1))
 ```
 
-En los gráficos de barras apiladas y mosaico (Figura \@ref(fig:graficos-condicionados)) se observa que los bloques horizontales correpondientes a `Low`, `Medium`, `High` y `Critical` conservan prácticamente la misma altura a lo largo de `Bronze`, `Silver` y `Gold`, lo que anticipa visualmente la independencia entre ambas variables
+Los gráficos de barras apiladas y el mosaico confirman visualmente lo que vimos en la tabla condicionada. Los bloques de cada nivel de carga (`Low`, `Medium`, `High`, `Critical`) mantienen casi la misma altura en las tres categorías de eficiencia. Como los escalones están a la misma altura en las tres barras, podemos anticipar la independencia.
 
 ### Contraste de Independencia. Test $\chi^2$ y Análisis de Residuos
 
-Para confirmar totalmente si el nivel de carga (`Load_Level`) es independiente de la eficiencia del hardware (`Efficiency`), planteamos el siguiente contraste de hipótesis fijado con un nivel de significación $\alpha = 0,05$:
+Para comprobar esto de forma estadísticamente formal, aplicamos el Test de Independencia de Pearson ($\alpha = 0.05$):
 
 - **$H_0$:** `Load_Level` y `Efficiency` son variables estadísticamente independientes.
 
@@ -173,4 +181,7 @@ Para confirmar totalmente si el nivel de carga (`Load_Level`) es independiente d
 indepchisq.test(tabla, alpha = 0.05, plot = TRUE)
 ```
 
-Como se aprecia en el gráfico y en la salida del contraste, el estadístico $\chi^2_{\text{obs}}$ es menor que el valor crítico (cae dentro de la región de aceptación) y el **$p$-valor es superior a $\alpha = 0,05$**. En consecuencia, **no rechazamos la hipótesis nula ($H_0$)**. Concluyendo que noexiste evidencia estadística de asociación entre el nivel de carga y la eficiencia energética del servidor; el reparto de cargas entre las distintas categorías de eficiencia es homogéneo y compatible con el azar.
+Como vemos en la salida del test, el estadístico cae en la región de aceptación y el $p$-valor es claramente superior a $0.05$. Por tanto, no hay evidencia para rechazar la hipótesis nula ($H_0$).
+
+**Conclusión:**
+Queda demostrado que no existe dependencia entre el nivel de carga y la eficiencia del hardware. Desde el punto de vista del sistema, esto indica que el balanceador de carga (`Load Balancer`) está haciendo un reparto equitativo e imparcial: reparte el trabajo de forma homogénea a todos los nodos de la infraestructura sin importarle de qué gama es el servidor.
