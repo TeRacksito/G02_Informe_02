@@ -40,7 +40,7 @@ exportar_tabla(
 )
 ```
 
-Nuestra muestra de servidores resulta ser la menos frecuente, constando solo del `` `r tab_eff[["Frecuencia Relativa"]][tab_eff$Efficiency == "Bronze"] * 100`% `` de las observaciones. Es decir, haremos una regresión obviando el `` `r sum(tab_eff[["Frecuencia Relativa"]][tab_eff$Efficiency != "Bronze"]) * 100`% `` de observaciones, en pos de centrarnos en la categoría de interés. Es interesante recalcar u observar este hecho, pues, los modelos predictivos son siempre mejores cuanto más datos tengamos.
+Nuestra muestra de servidores resulta ser la menos frecuente, constando solo del `` `r tab_eff[["Frecuencia Relativa"]][tab_eff$Efficiency == "Bronze"] * 100`% `` de las observaciones. Es decir, haremos una regresión obviando el `` `r sum(tab_eff[["Frecuencia Relativa"]][tab_eff$Efficiency != "Bronze"]) * 100`% `` de observaciones, en pos de centrarnos en la categoría de interés. Es interesante recalcar este hecho, pues, los modelos predictivos son siempre mejores cuanto más datos tengamos.
 
 Definimos nuestro subconjunto de datos de interés, filtrando por la categoría `Bronze`:
 
