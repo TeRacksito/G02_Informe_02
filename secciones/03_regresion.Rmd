@@ -215,7 +215,7 @@ exportar_tabla(
 
 Ambos coeficientes estimados son significativos, con p-valores muy bajos (menores que $10^{-16}$). Podemos rechazar la hipótesis nula $H_{0}:~\beta_i = 0$ para ambos parámetros.
 
-Como esperábamos, la pendiente es positiva ($\beta_{1} = `r round(b1, 4)`$), indicando que a mayor volumen de tráfico, mayor consumo de procesador. Sin embargo, hemos obtenido una ordenada en el origen sensiblemente negativa ($\beta_{0} = `r round(b0, 4)`$). Esto supone que predicciones para valores de `RPS` bajos podrían resultar en valores negativos de `CPU`, lo cual no tiene sentido físico. Es importante tener en cuenta esta consideración al interpretar el modelo. ¿Quizás sería más adecuado un modelo no lineal?
+Como esperábamos, la pendiente es positiva ($\beta_{1} = `r round(b1, 4)`$), indicando que a mayor volumen de tráfico, mayor consumo de procesador. Sin embargo, hemos obtenido una ordenada en el origen sensiblemente negativa ($\beta_{0} = `r round(b0, 4)`$). Esto supone que predicciones para valores de `RPS` bajos podrían resultar en valores negativos de `CPU`, lo cual no tiene sentido físico. Es importante tener en cuenta esta consideración al interpretar el modelo. ¿Quizás sería más adecuado un modelo no lineal? Podría ser una cuestión extra a atender al final del análisis.
 
 ```{r bondad_ajuste_modelo, eval=TRUE, class.source="fold-hide"}
 df_bondad <- data.frame(
@@ -234,7 +234,9 @@ exportar_tabla(
 )
 ```
 
-Observamos un coeficiente de determinación $R^2 = `r round(r2, 4)`$, lo que indica que aproximadamente el `` `r round(r2 * 100, 2)`% `` de la variabilidad en el uso del procesador se puede explicar debido al volumen de tráfico. Es decir, el modelo lineal no es perfecto, pero es bastante bueno. Aún así, es importante no olvidar las consideraciones sobre el intercepto negativo; porque aunque tengamos un buen ajuste, nunca es adecuado extrapolar valores imposibles físicamente. De nuevo, el p-valor es muy bajo (menor que $10^{-16}$), rechazando la hipótesis nula $H_{0}:~No~hay~relación~lineal$.
+Observamos un coeficiente de determinación $R^2 = `r round(r2, 4)`$, lo que indica que aproximadamente el `` `r round(r2 * 100, 2)`% `` de la variabilidad en el uso del procesador se puede explicar debido al volumen de tráfico. Es decir, el modelo lineal no es perfecto, pero es bastante bueno.
+
+Aún así, es importante no olvidar las consideraciones sobre el intercepto negativo; porque aunque tengamos un buen ajuste, nunca es adecuado extrapolar valores imposibles físicamente. De nuevo, el p-valor es muy bajo (menor que $10^{-16}$), rechazando la hipótesis nula $H_{0}:~No~hay~relación~lineal$.
 
 ### Recta de regresión y predicciones
 
@@ -403,10 +405,18 @@ exportar_tabla(
 )
 ```
 
-Como podemos ver, las observaciones `959` y `882` tienen un valor `RPS` muy bajo, por lo que el modelo predice un valor negativo de `CPU`. Tiene sentido que, al comparar el valor real con el predicho, el residuo sea muy grande. Por otro lado, la observación `885` es todo lo contrario, se trata de un caso de servidor con un estrés muy alto. Para un valor muy alto de `RPS`, el modelo predice un valor de `CPU` sensiblemente inferior al real, por lo que el residuo es también muy grande.
+Como podemos ver, las observaciones `959` y `882` tienen un valor `RPS` muy bajo, por lo que el modelo predice un valor negativo de `CPU`. Tiene sentido que, al comparar el valor real con el predicho, el residuo sea muy grande.
+
+Por otro lado, la observación `885` es todo lo contrario, se trata de un caso de servidor con un estrés alto. Para un valor medio alto de `RPS`, el modelo predice un valor de `CPU` sensiblemente inferior al real, por lo que el residuo es también muy grande; recordemos nuestras observaciones sobre los tramos medios-altos y altos de `RPS`.
 
 ### Conclusión interesante
 
-El hecho de que los residuos de nuestro modelo lineal sean homocedásticos e independientes, y además este siendo tan preciso, es interesante. Esto quiere decir que podemos pensar que por cada petición por segundo, aumenta o disminuye el consumo de procesador en una cantidad constante. Es decir, si tomamos la pendiente de la recta de regresión, podemos decir que por cada petición por segundo, el consumo de procesador aumenta en `` `r round(b1, 4)`% `` (*ojo, nos referimos a puntos porcentuales del valor `CPU`, y no a que aumenta relativamente*). Siguiendo esta lógica, se podría diseñar un sistema de prevención de sobrecarga o distribución de carga, con bastante fiabilidad, de modo que si el volumen de tráfico aumenta, se evita saturar un servidor concreto.
+El hecho de que los residuos de nuestro modelo lineal sean homocedásticos e independientes, y además este siendo tan preciso, es interesante. Esto quiere decir que podemos pensar que por cada petición por segundo, aumenta o disminuye el consumo de procesador en una cantidad constante.
 
-Nótese que esto no sería posible si no tuviéramos una relación fuerte entre el uso de procesador y el volumen de tráfico. Es el hecho de haber encontrado una regla simple y constante, lo que nos permite diseñar dicho sistema de prevención y distribución de carga. Si la relación fuera menos predecible, no sabríamos cómo reaccionar ante un aumento de tráfico, pues, tendríamos muchos falsos positivos (el tráfico aumenta pero no se ve reflejado en el consumo de procesador) y falsos negativos (el trafico no aumenta y, sin embargo, el consumo de procesador sí).
+Es decir, si tomamos la pendiente de la recta de regresión, podemos decir que por cada petición por segundo, el consumo de procesador aumenta en `` `r round(b1, 4)`% `` (*ojo, nos referimos a puntos porcentuales del valor `CPU`, y no a que aumenta relativamente*).
+
+Siguiendo esta lógica, se podría diseñar un sistema de prevención de sobrecarga o distribución de carga, con bastante fiabilidad, de modo que si el volumen de tráfico aumenta, se evita saturar un servidor concreto.
+
+Nótese que esto no sería posible si no tuviéramos una relación fuerte entre el uso de procesador y el volumen de tráfico. Es el hecho de haber encontrado una regla simple y constante, lo que nos permite diseñar dicho sistema de prevención y distribución de carga.
+
+Si la relación fuera menos predecible, no sabríamos cómo reaccionar ante un aumento de tráfico, pues, tendríamos muchos falsos positivos (el tráfico aumenta pero no se ve reflejado en el consumo de procesador) y falsos negativos (el trafico no aumenta y, sin embargo, el consumo de procesador sí).
